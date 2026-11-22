@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Choir Room" category="Ambient" version="1">
+  <PARAM id="mix" value="35"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="45"/>
+  <PARAM id="diffusion" value="0.75"/>
+  <PARAM id="size" value="55"/>
+  <PARAM id="lowCut" value="120"/>
+  <PARAM id="highCut" value="9000"/>
+  <PARAM id="modRate" value="3.5"/>
+  <PARAM id="modDepth" value="70"/>
+  <PARAM id="reverbMode" value="3"/>
+  <PARAM id="pitchMode" value="1"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>

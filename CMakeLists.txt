@@ -48,6 +48,19 @@ target_compile_features(AuroraBloomDSP PUBLIC cxx_std_20)
 ab_set_strict_warnings(AuroraBloomDSP)
 
 # ---------------------------------------------------------------------------
+# Embedded resources: fonts (OFL) and factory presets
+# ---------------------------------------------------------------------------
+file(GLOB AB_FACTORY_PRESETS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/presets/*.xml")
+juce_add_binary_data(AuroraBloomData
+    HEADER_NAME BinaryData.h
+    NAMESPACE BinaryData
+    SOURCES
+        assets/fonts/SpaceGrotesk-Medium.ttf
+        assets/fonts/SpaceGrotesk-Bold.ttf
+        ${AB_FACTORY_PRESETS})
+set_target_properties(AuroraBloomData PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# ---------------------------------------------------------------------------
 # Plugin
 # ---------------------------------------------------------------------------
 juce_add_plugin(AuroraBloom
@@ -70,8 +83,14 @@ juce_add_plugin(AuroraBloom
 
 target_sources(AuroraBloom PRIVATE
     source/Parameters.cpp
+    source/PresetManager.cpp
     source/PluginProcessor.cpp
-    source/PluginEditor.cpp)
+    source/PluginEditor.cpp
+    source/ui/LookAndFeel.cpp
+    source/ui/Knob.cpp
+    source/ui/ModeSelector.cpp
+    source/ui/DecayVisualizer.cpp
+    source/ui/PresetBar.cpp)
 
 target_include_directories(AuroraBloom PUBLIC source)
 
@@ -85,10 +104,11 @@ target_compile_definitions(AuroraBloom PUBLIC
 target_link_libraries(AuroraBloom
     PRIVATE
         juce::juce_audio_utils
+        juce::juce_recommended_warning_flags
     PUBLIC
+        AuroraBloomData
         AuroraBloomDSP
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_warning_flags)
+        juce::juce_recommended_config_flags)
 
 # ---------------------------------------------------------------------------
 # Tests

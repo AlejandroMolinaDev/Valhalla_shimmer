@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Plain Hall" category="Reverb" version="1">
+  <PARAM id="mix" value="30"/>
+  <PARAM id="pitch" value="0"/>
+  <PARAM id="feedback" value="50"/>
+  <PARAM id="diffusion" value="0.85"/>
+  <PARAM id="size" value="60"/>
+  <PARAM id="lowCut" value="40"/>
+  <PARAM id="highCut" value="7000"/>
+  <PARAM id="modRate" value="0.5"/>
+  <PARAM id="modDepth" value="15"/>
+  <PARAM id="reverbMode" value="2"/>
+  <PARAM id="pitchMode" value="4"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>

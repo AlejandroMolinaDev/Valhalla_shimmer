@@ -33,8 +33,13 @@ target_include_directories(PluginTests PRIVATE ${JUCE_SOURCE_DIR}/modules)
 target_link_libraries(PluginTests PRIVATE
     AuroraBloom
     Catch2::Catch2WithMain
-    juce::juce_recommended_config_flags
-    juce::juce_recommended_warning_flags)
+    juce::juce_recommended_config_flags)
+
+if(MSVC)
+    target_compile_options(PluginTests PRIVATE /W4)
+else()
+    target_compile_options(PluginTests PRIVATE -Wall -Wextra)
+endif()
 
 catch_discover_tests(PluginTests DISCOVERY_MODE PRE_TEST)
 

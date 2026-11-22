@@ -91,7 +91,7 @@ juce::String frequencyToText (float hz)
 
 juce::String rateToText (float hz)
 {
-    return juce::String (hz, hz < 1.0f ? 2 : (hz < 10.0f ? 2 : 1)) + " Hz";
+    return juce::String (hz, hz < 0.1f ? 3 : (hz < 10.0f ? 2 : 1)) + " Hz";
 }
 
 juce::String diffusionToText (float value)

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Dark Cathedral" category="Reverb" version="1">
+  <PARAM id="mix" value="40"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="82"/>
+  <PARAM id="diffusion" value="0.88"/>
+  <PARAM id="size" value="90"/>
+  <PARAM id="lowCut" value="30"/>
+  <PARAM id="highCut" value="5000"/>
+  <PARAM id="modRate" value="0.3"/>
+  <PARAM id="modDepth" value="20"/>
+  <PARAM id="reverbMode" value="1"/>
+  <PARAM id="pitchMode" value="4"/>
+  <PARAM id="colorMode" value="1"/>
+</AuroraBloomPreset>

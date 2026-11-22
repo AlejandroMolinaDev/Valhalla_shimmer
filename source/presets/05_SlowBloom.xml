@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Slow Bloom" category="Ambient" version="1">
+  <PARAM id="mix" value="50"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="70"/>
+  <PARAM id="diffusion" value="0.618"/>
+  <PARAM id="size" value="70"/>
+  <PARAM id="lowCut" value="60"/>
+  <PARAM id="highCut" value="8000"/>
+  <PARAM id="modRate" value="0.2"/>
+  <PARAM id="modDepth" value="12"/>
+  <PARAM id="reverbMode" value="2"/>
+  <PARAM id="pitchMode" value="0"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>

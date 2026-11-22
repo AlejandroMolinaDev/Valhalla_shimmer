@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Octave Halo" category="Shimmer" version="1">
+  <PARAM id="mix" value="45"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="65"/>
+  <PARAM id="diffusion" value="0.82"/>
+  <PARAM id="size" value="62"/>
+  <PARAM id="lowCut" value="120"/>
+  <PARAM id="highCut" value="7500"/>
+  <PARAM id="modRate" value="0.35"/>
+  <PARAM id="modDepth" value="18"/>
+  <PARAM id="reverbMode" value="2"/>
+  <PARAM id="pitchMode" value="0"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Celestial Organ" category="Shimmer" version="1">
+  <PARAM id="mix" value="50"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="78"/>
+  <PARAM id="diffusion" value="0.88"/>
+  <PARAM id="size" value="80"/>
+  <PARAM id="lowCut" value="80"/>
+  <PARAM id="highCut" value="9000"/>
+  <PARAM id="modRate" value="0.3"/>
+  <PARAM id="modDepth" value="22"/>
+  <PARAM id="reverbMode" value="1"/>
+  <PARAM id="pitchMode" value="3"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>
