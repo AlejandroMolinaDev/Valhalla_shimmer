@@ -2,6 +2,7 @@
 
 #include "DiffuserNetwork.h"
 #include "GrainPitchShifter.h"
+#include "LoopFilters.h"
 #include "ReverbModes.h"
 #include "Smoothers.h"
 
@@ -108,6 +109,7 @@ private:
     void clearLoopState() noexcept;
     void updateModulation() noexcept;
     void updatePitchMode() noexcept;
+    void updateFilters() noexcept;
 
     double sampleRate = 48000.0;
     bool prepared = false;
@@ -115,6 +117,7 @@ private:
     EngineParameters params;
     DiffuserNetwork diffuser;
     GrainPitchShifter shifterL, shifterR;
+    LoopFilters filters;
 
     LinearSmoother dryGain, wetGain, feedbackGain, diffusionG, bypassAmount;
     LinearSmoother pitchThru, pitchVoiceA, pitchVoiceB; // pitch-mode crossfade gains (20 ms)

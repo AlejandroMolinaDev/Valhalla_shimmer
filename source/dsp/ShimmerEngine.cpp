@@ -113,6 +113,7 @@ void ShimmerEngine::prepare (double newSampleRate)
     sizeFactor.prepare (sampleRate, kSizeTimeConstantMs);
     dcL.prepare (sampleRate);
     dcR.prepare (sampleRate);
+    filters.prepare (sampleRate);
     duckStep = static_cast<float> (1.0 / (kModeDuckMs * 0.001 * sampleRate));
 
     prepared = true;
@@ -139,9 +140,18 @@ void ShimmerEngine::reset() noexcept
     bypassAmount.snap (bypassAmount.getTarget());
     updateModulation();
     updatePitchMode();
+    updateFilters();
+    filters.snap();
     pitchThru.snap (pitchThru.getTarget());
     pitchVoiceA.snap (pitchVoiceA.getTarget());
     pitchVoiceB.snap (pitchVoiceB.getTarget());
+}
+
+void ShimmerEngine::updateFilters() noexcept
+{
+    filters.setLowCut (std::clamp (params.lowCutHz, 10.0f, 2000.0f));
+    filters.setHighCut (std::clamp (params.highCutHz, 500.0f, 20000.0f));
+    filters.setDark (params.colorMode == ColorMode::Dark);
 }
 
 void ShimmerEngine::updatePitchMode() noexcept
@@ -179,6 +189,7 @@ void ShimmerEngine::clearLoopState() noexcept
     fbL = fbR = 0.0f;
     shifterL.reset();
     shifterR.reset();
+    filters.reset();
     dcL.reset();
     dcR.reset();
 }
@@ -192,6 +203,7 @@ void ShimmerEngine::applyMode (ReverbMode newMode) noexcept
 
     const auto& spec = getModeSpec (newMode);
     monoInput = spec.monoInput;
+    filters.setDarkCutoff (spec.darkCutoffHz);
     crossCos = std::cos (spec.crossMixAngle);
     crossSin = std::sin (spec.crossMixAngle);
 }
@@ -209,6 +221,7 @@ void ShimmerEngine::setParameters (const EngineParameters& newParams) noexcept
     sizeFactor.setTarget (sizeToFactor (params.size));
     updateModulation();
     updatePitchMode();
+    updateFilters();
 }
 
 void ShimmerEngine::setBypassed (bool shouldBeBypassed) noexcept
@@ -277,8 +290,11 @@ void ShimmerEngine::process (float* left, float* right, int numSamples) noexcept
         float aL = 0.0f, bL = 0.0f, aR = 0.0f, bR = 0.0f;
         shifterL.process (wetL, useA, useB, aL, bL);
         shifterR.process (wetR, useA, useB, aR, bR);
-        const float pL = thru * wetL + gA * aL + gB * bL;
-        const float pR = thru * wetR + gA * aR + gB * bR;
+        float pL = thru * wetL + gA * aL + gB * bL;
+        float pR = thru * wetR + gA * aR + gB * bR;
+
+        // --- Loop filters: Low Cut -> High Cut -> Color (cumulative on every pass) --------------
+        filters.process (pL, pR);
 
         // --- Loop return path -------------------------------------------------------------------
         fbL = dcL.process (pL);

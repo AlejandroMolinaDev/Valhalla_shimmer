@@ -192,6 +192,9 @@ inline double bandEnergy (const std::vector<double>& spectrum, double sampleRate
 /** RT60 estimated from the Schroeder energy decay curve (T30 fit between -5 and -35 dB). */
 inline double rt60 (const std::vector<float>& ir, double sampleRate)
 {
+    if (ir.empty())
+        return 0.0;
+
     std::vector<double> edc (ir.size());
     double acc = 0.0;
     for (std::size_t i = ir.size(); i-- > 0;)
@@ -199,7 +202,7 @@ inline double rt60 (const std::vector<float>& ir, double sampleRate)
         acc += static_cast<double> (ir[i]) * static_cast<double> (ir[i]);
         edc[i] = acc;
     }
-    const double total = edc.front();
+    const double total = acc; // == edc[0]
     std::size_t i5 = 0, i35 = 0;
     for (std::size_t i = 0; i < edc.size(); ++i)
     {

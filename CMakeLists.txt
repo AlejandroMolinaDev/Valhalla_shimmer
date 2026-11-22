@@ -40,6 +40,7 @@ add_subdirectory(JUCE EXCLUDE_FROM_ALL)
 add_library(AuroraBloomDSP STATIC
     source/dsp/DiffuserNetwork.cpp
     source/dsp/GrainPitchShifter.cpp
+    source/dsp/LoopFilters.cpp
     source/dsp/ShimmerEngine.cpp)
 
 target_include_directories(AuroraBloomDSP PUBLIC source)

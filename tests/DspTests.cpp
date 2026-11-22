@@ -510,3 +510,197 @@ TEST_CASE ("Switching pitch modes and pitch while running stays bounded", "[pitc
     REQUIRE (allFinite (s.r));
     CHECK (peakAbs (s.l) < 1.5f);
 }
+
+// =============================================================================================
+// Loop filters, modulation and host independence (Phase 3)
+// =============================================================================================
+namespace
+{
+    /** Spectrum of the late tail (from tailStart s on) after a short noise burst. */
+    std::vector<double> tailSpectrum (const dsp::EngineParameters& p, double tailStart, double seconds)
+    {
+        auto engine = makeEngine (p);
+        auto s = whiteNoise (static_cast<std::size_t> (kSr * seconds), 0.0f);
+        auto burst = whiteNoise (static_cast<std::size_t> (kSr * 0.05), 0.5f, 77);
+        std::copy (burst.l.begin(), burst.l.end(), s.l.begin());
+        std::copy (burst.r.begin(), burst.r.end(), s.r.begin());
+        render (engine, s);
+        const auto from = static_cast<std::size_t> (kSr * tailStart);
+        return powerSpectrum (s.l, from, s.size() - from, kFft);
+    }
+
+    double centroid (const std::vector<double>& spec)
+    {
+        double num = 0.0, den = 0.0;
+        for (std::size_t k = 1; k < spec.size(); ++k)
+        {
+            num += spec[k] * static_cast<double> (k) * kSr / static_cast<double> (kFft);
+            den += spec[k];
+        }
+        return num / den;
+    }
+} // namespace
+
+TEST_CASE ("High Cut in the loop darkens the tail cumulatively", "[filters]")
+{
+    dsp::EngineParameters p;
+    p.mix = 1.0f;
+    p.feedback = 0.85f;
+    p.pitchMode = dsp::PitchMode::Bypass;
+    p.lowCutHz = 10.0f;
+
+    p.highCutHz = 16000.0f;
+    const double open = centroid (tailSpectrum (p, 2.0, 4.0));
+    p.highCutHz = 1500.0f;
+    const double closed = centroid (tailSpectrum (p, 2.0, 4.0));
+    CAPTURE (open, closed);
+    CHECK (closed < 0.5 * open);
+}
+
+TEST_CASE ("Low Cut in the loop thins the tail cumulatively", "[filters]")
+{
+    dsp::EngineParameters p;
+    p.mix = 1.0f;
+    p.feedback = 0.85f;
+    p.pitchMode = dsp::PitchMode::Bypass;
+    p.highCutHz = 20000.0f;
+
+    p.lowCutHz = 10.0f;
+    const auto full = tailSpectrum (p, 2.0, 4.0);
+    p.lowCutHz = 1000.0f;
+    const auto thin = tailSpectrum (p, 2.0, 4.0);
+
+    const double lowFull = bandEnergy (full, kSr, kFft, 20.0, 300.0) / bandEnergy (full, kSr, kFft, 20.0, 20000.0);
+    const double lowThin = bandEnergy (thin, kSr, kFft, 20.0, 300.0) / bandEnergy (thin, kSr, kFft, 20.0, 20000.0);
+    CAPTURE (lowFull, lowThin);
+    CHECK (lowThin < 0.1 * lowFull);
+}
+
+TEST_CASE ("Color Dark removes the top octave of the tail", "[filters]")
+{
+    dsp::EngineParameters p;
+    p.mix = 1.0f;
+    p.feedback = 0.8f;
+    p.pitchMode = dsp::PitchMode::Single;
+    p.lowCutHz = 10.0f;
+    p.highCutHz = 20000.0f;
+
+    p.colorMode = dsp::ColorMode::Bright;
+    const auto bright = tailSpectrum (p, 1.0, 3.0);
+    p.colorMode = dsp::ColorMode::Dark;
+    const auto dark = tailSpectrum (p, 1.0, 3.0);
+
+    const double topBright = bandEnergy (bright, kSr, kFft, 13000.0, 20000.0) / bandEnergy (bright, kSr, kFft, 20.0, 20000.0);
+    const double topDark = bandEnergy (dark, kSr, kFft, 13000.0, 20000.0) / bandEnergy (dark, kSr, kFft, 20.0, 20000.0);
+    CAPTURE (topBright, topDark);
+    CHECK (ratioDb (topDark, topBright) < -30.0);
+}
+
+TEST_CASE ("Modulation detunes: the tail of a sine spreads around its frequency", "[modulation]")
+{
+    auto spread = [] (float depth)
+    {
+        dsp::EngineParameters p;
+        p.mix = 1.0f;
+        p.feedback = 0.7f;
+        p.diffusion = 0.9f;
+        p.modDepth = depth;
+        p.modRateHz = 2.0f;
+        p.pitchMode = dsp::PitchMode::Bypass;
+        p.highCutHz = 20000.0f;
+        const auto spec = sineResponse (p, 1000.0, 6.0);
+        return band (spec, 1000.0, 60.0) / band (spec, 1000.0, 3.0);
+    };
+
+    const double still = spread (0.0f);
+    const double moving = spread (1.0f);
+    CAPTURE (still, moving);
+    CHECK (moving > 1.5 * still);
+}
+
+TEST_CASE ("Test 7 - RT60 is sample-rate independent (44.1 kHz vs 96 kHz, +-15 %)", "[samplerate]")
+{
+    const auto pitchMode = GENERATE (dsp::PitchMode::Bypass, dsp::PitchMode::Single);
+    const auto reverbMode = GENERATE (dsp::ReverbMode::MediumStereo, dsp::ReverbMode::SmallStereo);
+    CAPTURE (static_cast<int> (pitchMode), modeName (reverbMode));
+
+    auto measure = [&] (double sr)
+    {
+        dsp::EngineParameters p;
+        p.mix = 1.0f;
+        p.feedback = 0.75f;
+        p.pitchMode = pitchMode;
+        p.reverbMode = reverbMode;
+        auto engine = makeEngine (p, sr);
+        auto s = impulse (static_cast<std::size_t> (sr * 20.0), 0.5f);
+        render (engine, s);
+        return rt60 (s.l, sr);
+    };
+
+    const double rt44 = measure (44100.0);
+    const double rt96 = measure (96000.0);
+    CAPTURE (rt44, rt96);
+    CHECK (rt44 > 0.5);
+    CHECK (std::abs (rt96 / rt44 - 1.0) < 0.15);
+}
+
+TEST_CASE ("Works at 44.1, 48, 88.2, 96 and 192 kHz", "[samplerate]")
+{
+    const auto sr = GENERATE (44100.0, 48000.0, 88200.0, 96000.0, 192000.0);
+    CAPTURE (sr);
+
+    dsp::EngineParameters p;
+    p.feedback = 0.95f;
+    p.colorMode = dsp::ColorMode::Dark;
+    auto engine = makeEngine (p, sr);
+    auto s = whiteNoise (static_cast<std::size_t> (sr * 3.0), 0.5f);
+    render (engine, s, { 1, 33, 1024 });
+    REQUIRE (allFinite (s.l));
+    REQUIRE (allFinite (s.r));
+    CHECK (peakAbs (s.l) < 2.0f);
+    CHECK (engine.getLastWetRms (0) > 0.01f);
+}
+
+TEST_CASE ("Test 8 - Variable block sizes produce the same output as a single block", "[blocks]")
+{
+    const auto pitchMode = GENERATE (dsp::PitchMode::Single, dsp::PitchMode::DualReverse);
+    CAPTURE (static_cast<int> (pitchMode));
+
+    dsp::EngineParameters p;
+    p.feedback = 0.9f;
+    p.pitchMode = pitchMode;
+    p.modDepth = 0.5f;
+    p.colorMode = dsp::ColorMode::Dark;
+
+    const auto input = whiteNoise (static_cast<std::size_t> (kSr * 3.0), 0.4f);
+
+    auto reference = input;
+    auto engineA = makeEngine (p);
+    render (engineA, reference, { static_cast<int> (reference.size()) });
+
+    auto chunked = input;
+    auto engineB = makeEngine (p);
+    render (engineB, chunked, { 1, 7, 64, 513, 4096 });
+
+    float maxDiff = 0.0f;
+    for (std::size_t i = 0; i < input.size(); ++i)
+        maxDiff = std::max ({ maxDiff, std::abs (reference.l[i] - chunked.l[i]), std::abs (reference.r[i] - chunked.r[i]) });
+    CAPTURE (maxDiff);
+    CHECK (maxDiff <= 1.0e-6f);
+}
+
+TEST_CASE ("prepare() can be called repeatedly and at a new sample rate", "[host]")
+{
+    dsp::EngineParameters p;
+    dsp::ShimmerEngine engine;
+    engine.setParameters (p);
+    engine.prepare (48000.0);
+    engine.prepare (48000.0);
+    engine.prepare (96000.0);
+    engine.prepare (44100.0);
+
+    auto s = whiteNoise (static_cast<std::size_t> (44100.0), 0.5f);
+    render (engine, s, { 4096, 8192 }); // larger than any "maximum block" a host announced
+    REQUIRE (allFinite (s.l));
+    CHECK (engine.getSampleRate() == 44100.0);
+}
