@@ -10,6 +10,17 @@ list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
 
 # ---------------------------------------------------------------------------
+# DSP tests (pure C++, no JUCE)
+# ---------------------------------------------------------------------------
+add_executable(DspTests
+    TestHelpers.h
+    DspTests.cpp)
+
+target_link_libraries(DspTests PRIVATE AuroraBloomDSP Catch2::Catch2WithMain)
+ab_set_strict_warnings(DspTests)
+catch_discover_tests(DspTests DISCOVERY_MODE PRE_TEST)
+
+# ---------------------------------------------------------------------------
 # Plugin-level tests (link the JUCE shared code of the plugin)
 # ---------------------------------------------------------------------------
 add_executable(PluginTests

@@ -1,18 +1,18 @@
 #pragma once
 
+#include <juce_audio_processors/juce_audio_processors.h>
+
 #include "PluginProcessor.h"
 
-class AuroraBloomEditor final : public juce::AudioProcessorEditor
+/** Temporary editor (Phase 1-3): JUCE's generic parameter editor. */
+class AuroraBloomEditor final : public juce::GenericAudioProcessorEditor
 {
 public:
-    explicit AuroraBloomEditor (AuroraBloomProcessor&);
-    ~AuroraBloomEditor() override = default;
-
-    void paint (juce::Graphics&) override;
-    void resized() override;
+    explicit AuroraBloomEditor (AuroraBloomProcessor& p) : GenericAudioProcessorEditor (p)
+    {
+        setSize (520, 460);
+    }
 
 private:
-    AuroraBloomProcessor& processorRef;
-
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AuroraBloomEditor)
 };

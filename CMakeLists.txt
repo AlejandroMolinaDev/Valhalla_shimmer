@@ -35,6 +35,17 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 add_subdirectory(JUCE EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
+# DSP core: plain C++20, no JUCE dependency (fast, deterministic unit tests)
+# ---------------------------------------------------------------------------
+add_library(AuroraBloomDSP STATIC
+    source/dsp/DiffuserNetwork.cpp
+    source/dsp/ShimmerEngine.cpp)
+
+target_include_directories(AuroraBloomDSP PUBLIC source)
+target_compile_features(AuroraBloomDSP PUBLIC cxx_std_20)
+ab_set_strict_warnings(AuroraBloomDSP)
+
+# ---------------------------------------------------------------------------
 # Plugin
 # ---------------------------------------------------------------------------
 juce_add_plugin(AuroraBloom
@@ -56,6 +67,7 @@ juce_add_plugin(AuroraBloom
     COPY_PLUGIN_AFTER_BUILD ${AB_COPY_AFTER_BUILD})
 
 target_sources(AuroraBloom PRIVATE
+    source/Parameters.cpp
     source/PluginProcessor.cpp
     source/PluginEditor.cpp)
 
@@ -72,6 +84,7 @@ target_link_libraries(AuroraBloom
     PRIVATE
         juce::juce_audio_utils
     PUBLIC
+        AuroraBloomDSP
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
 
