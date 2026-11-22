@@ -379,3 +379,134 @@ TEST_CASE ("Zero-length and single-sample blocks are handled", "[host]")
     CHECK (std::isfinite (l));
     CHECK (std::isfinite (r));
 }
+
+// =============================================================================================
+// Pitch shifter in the loop (Phase 2)
+// =============================================================================================
+namespace
+{
+    constexpr std::size_t kFft = 8192;
+
+    /** Renders a continuous sine through the engine and returns the averaged spectrum of the
+        left output over the last half of the signal. */
+    std::vector<double> sineResponse (const dsp::EngineParameters& p, double freq, double seconds = 4.0)
+    {
+        auto engine = makeEngine (p);
+        auto s = sine (static_cast<std::size_t> (kSr * seconds), freq, kSr, 0.25f);
+        render (engine, s);
+        const auto half = s.size() / 2;
+        return powerSpectrum (s.l, half, s.size() - half, kFft);
+    }
+
+    double band (const std::vector<double>& spec, double centre, double halfWidth = 15.0)
+    {
+        return bandEnergy (spec, kSr, kFft, centre - halfWidth, centre + halfWidth);
+    }
+
+    double ratioDb (double a, double b) { return 10.0 * std::log10 (std::max (a, 1.0e-30) / std::max (b, 1.0e-30)); }
+
+    dsp::EngineParameters pitchParams (dsp::PitchMode mode, float semitones, float feedback)
+    {
+        dsp::EngineParameters p;
+        p.mix = 1.0f;
+        p.pitchMode = mode;
+        p.pitchSemitones = semitones;
+        p.feedback = feedback;
+        p.lowCutHz = 10.0f;
+        p.highCutHz = 20000.0f;
+        return p;
+    }
+} // namespace
+
+TEST_CASE ("Test 4 - Feedback 0 + Pitch Single +12: no octave in the wet signal", "[pitch]")
+{
+    const auto spec = sineResponse (pitchParams (dsp::PitchMode::Single, 12.0f, 0.0f), 440.0);
+    const double octaveDb = ratioDb (band (spec, 880.0), band (spec, 440.0));
+    CAPTURE (octaveDb);
+    CHECK (octaveDb < -60.0);
+}
+
+TEST_CASE ("Test 5 - High feedback: Single adds energy above the fundamental vs Bypass", "[pitch]")
+{
+    auto aboveFraction = [] (dsp::PitchMode mode)
+    {
+        const auto spec = sineResponse (pitchParams (mode, 12.0f, 0.85f), 440.0);
+        const double total = bandEnergy (spec, kSr, kFft, 20.0, 24000.0);
+        return bandEnergy (spec, kSr, kFft, 600.0, 24000.0) / total;
+    };
+
+    const double bypass = aboveFraction (dsp::PitchMode::Bypass);
+    const double single = aboveFraction (dsp::PitchMode::Single);
+    CAPTURE (bypass, single, ratioDb (single, bypass));
+    CHECK (single > 0.2);
+    CHECK (ratioDb (single, bypass) > 10.0);
+}
+
+TEST_CASE ("Single +12 with feedback stacks rising octaves", "[pitch]")
+{
+    const auto spec = sineResponse (pitchParams (dsp::PitchMode::Single, 12.0f, 0.8f), 220.0, 6.0);
+    const double f0 = band (spec, 220.0);
+    CAPTURE (ratioDb (band (spec, 440.0), f0), ratioDb (band (spec, 880.0), f0), ratioDb (band (spec, 1760.0), f0));
+    CHECK (ratioDb (band (spec, 440.0), f0) > -20.0);
+    CHECK (ratioDb (band (spec, 880.0), f0) > -30.0);
+    CHECK (ratioDb (band (spec, 1760.0), f0) > -40.0);
+    // ...and energy at those octaves stands well above the gaps between them.
+    CHECK (ratioDb (band (spec, 880.0), band (spec, 660.0)) > 6.0);
+}
+
+TEST_CASE ("Pitch -12 shifts downwards", "[pitch]")
+{
+    const auto spec = sineResponse (pitchParams (dsp::PitchMode::Single, -12.0f, 0.7f), 880.0);
+    CHECK (ratioDb (band (spec, 440.0), band (spec, 880.0)) > -20.0);
+    CHECK (ratioDb (band (spec, 440.0), band (spec, 1760.0)) > 10.0);
+}
+
+TEST_CASE ("Pitch +7 produces a fifth", "[pitch]")
+{
+    const auto spec = sineResponse (pitchParams (dsp::PitchMode::Single, 7.0f, 0.5f), 440.0);
+    const double fifth = band (spec, 440.0 * std::pow (2.0, 7.0 / 12.0), 10.0);
+    CHECK (ratioDb (fifth, band (spec, 620.0, 10.0)) > 10.0);
+    CHECK (ratioDb (fifth, band (spec, 700.0, 10.0)) > 10.0);
+}
+
+TEST_CASE ("Dual shifts up and down at the same time", "[pitch]")
+{
+    const auto dual = sineResponse (pitchParams (dsp::PitchMode::Dual, 12.0f, 0.6f), 880.0);
+    const auto single = sineResponse (pitchParams (dsp::PitchMode::Single, 12.0f, 0.6f), 880.0);
+
+    const double dualDown = ratioDb (band (dual, 440.0), band (dual, 880.0));
+    const double dualUp = ratioDb (band (dual, 1760.0), band (dual, 880.0));
+    const double singleDown = ratioDb (band (single, 440.0), band (single, 880.0));
+    CAPTURE (dualDown, dualUp, singleDown);
+    CHECK (dualDown > -25.0);
+    CHECK (dualUp > -25.0);
+    CHECK (dualDown > singleDown + 15.0);
+}
+
+TEST_CASE ("Reverse modes still pitch shift", "[pitch]")
+{
+    const auto mode = GENERATE (dsp::PitchMode::SingleReverse, dsp::PitchMode::DualReverse);
+    CAPTURE (static_cast<int> (mode));
+    const auto spec = sineResponse (pitchParams (mode, 12.0f, 0.7f), 440.0);
+    CHECK (ratioDb (band (spec, 880.0), band (spec, 440.0)) > -25.0);
+    CHECK (ratioDb (band (spec, 880.0), band (spec, 660.0)) > 6.0);
+}
+
+TEST_CASE ("Switching pitch modes and pitch while running stays bounded", "[pitch]")
+{
+    auto p = pitchParams (dsp::PitchMode::Single, 12.0f, 0.9f);
+    auto engine = makeEngine (p);
+    auto s = whiteNoise (static_cast<std::size_t> (kSr * 4.0), 0.3f);
+
+    const std::size_t block = 256;
+    for (std::size_t pos = 0, k = 0; pos < s.size(); pos += block, ++k)
+    {
+        p.pitchMode = static_cast<dsp::PitchMode> ((k / 19) % dsp::kNumPitchModes);
+        p.pitchSemitones = static_cast<float> (static_cast<int> (k % 25) - 12);
+        engine.setParameters (p);
+        engine.process (s.l.data() + pos, s.r.data() + pos, static_cast<int> (std::min (block, s.size() - pos)));
+    }
+    REQUIRE (allFinite (s.l));
+    REQUIRE (allFinite (s.r));
+    CHECK (peakAbs (s.l) < 1.5f);
+}

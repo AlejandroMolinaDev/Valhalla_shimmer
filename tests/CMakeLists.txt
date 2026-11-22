@@ -37,3 +37,10 @@ target_link_libraries(PluginTests PRIVATE
     juce::juce_recommended_warning_flags)
 
 catch_discover_tests(PluginTests DISCOVERY_MODE PRE_TEST)
+
+# ---------------------------------------------------------------------------
+# Offline renderer (WAV) used for listening tests, spectrograms and CPU timing
+# ---------------------------------------------------------------------------
+add_executable(ab_render RenderTool.cpp)
+target_link_libraries(ab_render PRIVATE AuroraBloomDSP)
+ab_set_strict_warnings(ab_render)

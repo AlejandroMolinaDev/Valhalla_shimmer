@@ -15,6 +15,8 @@ namespace
     constexpr double kSizeTimeConstantMs = 250.0;
     constexpr double kBypassRampMs = 50.0;
     constexpr double kModeDuckMs = 25.0;
+    constexpr double kPitchModeRampMs = 20.0;
+    constexpr float kMinus3dB = 0.70710678f;
     constexpr double kDcCutoffHz = 5.0;
     constexpr float kSoftClipKnee = 0.75f;
 } // namespace
@@ -94,13 +96,20 @@ void ShimmerEngine::prepare (double newSampleRate)
     sampleRate = newSampleRate;
 
     if (needsAllocation)
+    {
         diffuser.prepare (sampleRate);
+        shifterL.prepare (sampleRate, 0x1234ABCDu); // different seeds: decorrelated L/R grains
+        shifterR.prepare (sampleRate, 0x9E3779B9u);
+    }
 
     dryGain.prepare (sampleRate, kMixRampMs);
     wetGain.prepare (sampleRate, kMixRampMs);
     feedbackGain.prepare (sampleRate, kParamRampMs);
     diffusionG.prepare (sampleRate, kParamRampMs);
     bypassAmount.prepare (sampleRate, kBypassRampMs);
+    pitchThru.prepare (sampleRate, kPitchModeRampMs);
+    pitchVoiceA.prepare (sampleRate, kPitchModeRampMs);
+    pitchVoiceB.prepare (sampleRate, kPitchModeRampMs);
     sizeFactor.prepare (sampleRate, kSizeTimeConstantMs);
     dcL.prepare (sampleRate);
     dcR.prepare (sampleRate);
@@ -129,6 +138,33 @@ void ShimmerEngine::reset() noexcept
     sizeFactor.snap (sizeToFactor (params.size));
     bypassAmount.snap (bypassAmount.getTarget());
     updateModulation();
+    updatePitchMode();
+    pitchThru.snap (pitchThru.getTarget());
+    pitchVoiceA.snap (pitchVoiceA.getTarget());
+    pitchVoiceB.snap (pitchVoiceB.getTarget());
+}
+
+void ShimmerEngine::updatePitchMode() noexcept
+{
+    float thru = 0.0f, a = 0.0f, b = 0.0f;
+    switch (params.pitchMode)
+    {
+        case PitchMode::Single:
+        case PitchMode::SingleReverse: a = 1.0f; break;
+        case PitchMode::Dual:
+        case PitchMode::DualReverse: a = b = kMinus3dB; break;
+        case PitchMode::Bypass: thru = 1.0f; break;
+    }
+    pitchThru.setTarget (thru);
+    pitchVoiceA.setTarget (a);
+    pitchVoiceB.setTarget (b);
+
+    const bool rev = params.pitchMode == PitchMode::SingleReverse || params.pitchMode == PitchMode::DualReverse;
+    const float st = std::clamp (params.pitchSemitones, -12.0f, 12.0f);
+    shifterL.setReverse (rev);
+    shifterR.setReverse (rev);
+    shifterL.setSemitones (st);
+    shifterR.setSemitones (st);
 }
 
 void ShimmerEngine::updateModulation() noexcept
@@ -141,6 +177,8 @@ void ShimmerEngine::updateModulation() noexcept
 void ShimmerEngine::clearLoopState() noexcept
 {
     fbL = fbR = 0.0f;
+    shifterL.reset();
+    shifterR.reset();
     dcL.reset();
     dcR.reset();
 }
@@ -170,6 +208,7 @@ void ShimmerEngine::setParameters (const EngineParameters& newParams) noexcept
     diffusionG.setTarget (diffusionToCoefficient (params.diffusion));
     sizeFactor.setTarget (sizeToFactor (params.size));
     updateModulation();
+    updatePitchMode();
 }
 
 void ShimmerEngine::setBypassed (bool shouldBeBypassed) noexcept
@@ -229,9 +268,21 @@ void ShimmerEngine::process (float* left, float* right, int numSamples) noexcept
         const float wetL = softClip (netL);
         const float wetR = softClip (netR);
 
+        // --- Pitch shifter (inside the loop) -----------------------------------------------------
+        const float thru = pitchThru.next();
+        const float gA = pitchVoiceA.next();
+        const float gB = pitchVoiceB.next();
+        const bool useA = gA > 0.0f || pitchVoiceA.getTarget() > 0.0f;
+        const bool useB = gB > 0.0f || pitchVoiceB.getTarget() > 0.0f;
+        float aL = 0.0f, bL = 0.0f, aR = 0.0f, bR = 0.0f;
+        shifterL.process (wetL, useA, useB, aL, bL);
+        shifterR.process (wetR, useA, useB, aR, bR);
+        const float pL = thru * wetL + gA * aL + gB * bL;
+        const float pR = thru * wetR + gA * aR + gB * bR;
+
         // --- Loop return path -------------------------------------------------------------------
-        fbL = dcL.process (wetL);
-        fbR = dcR.process (wetR);
+        fbL = dcL.process (pL);
+        fbR = dcR.process (pR);
 
         // --- Output mix ----------------------------------------------------------------------
         const float dg = dryGain.next() * active + bypass;

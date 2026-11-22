@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DiffuserNetwork.h"
+#include "GrainPitchShifter.h"
 #include "ReverbModes.h"
 #include "Smoothers.h"
 
@@ -64,7 +65,11 @@ private:
 
         in ─► u = in + g·Rot(fb[n-1]) ─► DiffuserNetwork ─► softClip ─► wet ─► equal-power mix
                        ▲                                       │
-                       └─ DC block ◄─ (pitch, filters) ◄───────┘
+                       └─ DC block ◄─ filters ◄─ GrainPitchShifter ◄┘
+
+    The pitch shifter sits inside the loop: every recirculation goes through the diffusers and
+    the shifter again, so +12 st stacks rising octaves while the echo density grows. With
+    Feedback = 0 the shifted signal is never heard.
 
     Processing is strictly per sample with every smoother and modulator advanced once per
     sample, so the output does not depend on how the host splits the audio into blocks. */
@@ -102,14 +107,17 @@ private:
     void applyMode (ReverbMode newMode) noexcept;
     void clearLoopState() noexcept;
     void updateModulation() noexcept;
+    void updatePitchMode() noexcept;
 
     double sampleRate = 48000.0;
     bool prepared = false;
 
     EngineParameters params;
     DiffuserNetwork diffuser;
+    GrainPitchShifter shifterL, shifterR;
 
     LinearSmoother dryGain, wetGain, feedbackGain, diffusionG, bypassAmount;
+    LinearSmoother pitchThru, pitchVoiceA, pitchVoiceB; // pitch-mode crossfade gains (20 ms)
     OnePoleSmoother sizeFactor;
 
     // Reverb-mode change: duck the wet path, reconfigure, fade back in.
