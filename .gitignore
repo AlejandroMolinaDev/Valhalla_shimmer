@@ -1,0 +1,54 @@
+# Build trees
+build/
+build-*/
+cmake-build-*/
+out/
+Builds/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+compile_commands.json
+_deps/
+Testing/
+
+# Visual Studio / MSVC
+.vs/
+*.sln
+*.vcxproj*
+*.user
+*.suo
+*.pdb
+*.ilk
+*.obj
+*.idb
+x64/
+Debug/
+Release/
+
+# Xcode / macOS
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# C/C++ objects
+*.o
+*.a
+*.so
+*.dylib
+*.lib
+*.dll
+*.exe
+
+# Tooling output
+pluginval-logs/
+renders/
+*.wav
