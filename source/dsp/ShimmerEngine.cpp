@@ -28,6 +28,12 @@ void DcBlocker::prepare (double sampleRate) noexcept
     reset();
 }
 
+void OverlapMakeup::prepare (double sampleRate) noexcept
+{
+    r = static_cast<float> (std::exp (-2.0 * 3.14159265358979323846 * kCornerHz / sampleRate));
+    reset();
+}
+
 // =============================================================================================
 float ShimmerEngine::feedbackToGain (float feedback01) noexcept
 {
@@ -113,6 +119,8 @@ void ShimmerEngine::prepare (double newSampleRate)
     sizeFactor.prepare (sampleRate, kSizeTimeConstantMs);
     dcL.prepare (sampleRate);
     dcR.prepare (sampleRate);
+    makeupL.prepare (sampleRate);
+    makeupR.prepare (sampleRate);
     filters.prepare (sampleRate);
     duckStep = static_cast<float> (1.0 / (kModeDuckMs * 0.001 * sampleRate));
 
@@ -187,6 +195,8 @@ void ShimmerEngine::updateModulation() noexcept
 void ShimmerEngine::clearLoopState() noexcept
 {
     fbL = fbR = 0.0f;
+    makeupL.reset();
+    makeupR.reset();
     shifterL.reset();
     shifterR.reset();
     filters.reset();
@@ -290,8 +300,8 @@ void ShimmerEngine::process (float* left, float* right, int numSamples) noexcept
         float aL = 0.0f, bL = 0.0f, aR = 0.0f, bR = 0.0f;
         shifterL.process (wetL, useA, useB, aL, bL);
         shifterR.process (wetR, useA, useB, aR, bR);
-        float pL = thru * wetL + gA * aL + gB * bL;
-        float pR = thru * wetR + gA * aR + gB * bR;
+        float pL = thru * wetL + makeupL.process (gA * aL + gB * bL);
+        float pR = thru * wetR + makeupR.process (gA * aR + gB * bR);
 
         // --- Loop filters: Low Cut -> High Cut -> Color (cumulative on every pass) --------------
         filters.process (pL, pR);

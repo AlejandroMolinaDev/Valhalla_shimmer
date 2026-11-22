@@ -76,7 +76,7 @@ void AuroraBloomProcessor::processInternal (juce::AudioBuffer<float>& buffer, bo
     const auto numIn = getTotalNumInputChannels();
 
     if (numSamples <= 0 || numChannels <= 0)
-        return; // e.g. FL Studio's zero-length parameter flush calls
+        return; // zero-length calls (parameter-only updates from some hosts)
 
     // Mono input bus: the second channel holds garbage, duplicate the first one.
     if (numIn == 1 && numChannels > 1)

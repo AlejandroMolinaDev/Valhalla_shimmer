@@ -62,6 +62,30 @@ private:
     float r = 0.999f, x1 = 0.0f, y1 = 0.0f;
 };
 
+/** Make-up for the grain overlap-add loss: the Hann overlap of decorrelated grains loses
+    ~1.2 dB of power per pass, while very low, phase-coherent content (< ~30 Hz) passes at unity.
+    Adding (k - 1) * HP60(x) lifts everything above ~60 Hz by k (~+1.2 dB) and leaves the coherent
+    sub-bass at unity, so the loop reaches unity gain at 100 % Feedback without a sub-bass runaway. */
+class OverlapMakeup
+{
+public:
+    static constexpr float kMakeup = 0.148f; // 10^(1.2/20) - 1
+    static constexpr double kCornerHz = 60.0;
+
+    void prepare (double sampleRate) noexcept;
+    void reset() noexcept { x1 = y1 = 0.0f; }
+    float process (float x) noexcept
+    {
+        const float hp = r * (y1 + x - x1); // one-pole high-pass
+        x1 = x;
+        y1 = hp;
+        return x + kMakeup * hp;
+    }
+
+private:
+    float r = 0.99f, x1 = 0.0f, y1 = 0.0f;
+};
+
 /** The whole wet path of Aurora Bloom:
 
         in ─► u = in + g·Rot(fb[n-1]) ─► DiffuserNetwork ─► softClip ─► wet ─► equal-power mix
@@ -132,6 +156,7 @@ private:
 
     float fbL = 0.0f, fbR = 0.0f;
     DcBlocker dcL, dcR;
+    OverlapMakeup makeupL, makeupR;
 
     float wetRmsL = 0.0f, wetRmsR = 0.0f, inputRms = 0.0f;
     int numSafetyResets = 0;
