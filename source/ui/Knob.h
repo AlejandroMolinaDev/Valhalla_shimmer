@@ -47,6 +47,9 @@ public:
     void resized() override;
     KnobSlider& getSlider() noexcept { return slider; }
 
+    /** Colour of the disc tint and value arc. */
+    void setAccent (juce::Colour colour);
+
 private:
     juce::Label titleLabel;
     KnobSlider slider;

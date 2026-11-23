@@ -367,6 +367,35 @@ TEST_CASE ("Host bypass passes the dry signal at unity once the ramp has finishe
         REQUIRE_THAT (s.l[i], WithinAbs (reference.l[i], 1.0e-6));
 }
 
+TEST_CASE ("Fully bypassed: no processing, and the old tail does not come back", "[bypass]")
+{
+    dsp::EngineParameters p;
+    p.mix = 1.0f;
+    p.feedback = 0.95f;
+    auto engine = makeEngine (p);
+
+    // Fill the tank, then bypass long enough for the ramp to finish.
+    auto warm = whiteNoise (static_cast<std::size_t> (kSr), 0.5f);
+    render (engine, warm);
+    engine.setBypassed (true);
+    Stereo ramp (static_cast<std::size_t> (kSr * 0.1));
+    render (engine, ramp);
+
+    // While bypassed the buffer is returned untouched (bit-exact dry, no DSP).
+    auto s = whiteNoise (4096, 0.5f, 3);
+    const auto reference = s;
+    render (engine, s);
+    CHECK (s.l == reference.l);
+    CHECK (s.r == reference.r);
+
+    // Re-enable with silence: the old tail must not resurface.
+    engine.setBypassed (false);
+    Stereo after (static_cast<std::size_t> (kSr * 0.5));
+    render (engine, after);
+    CHECK (peakAbs (after.l) < 1.0e-6f);
+    CHECK (peakAbs (after.r) < 1.0e-6f);
+}
+
 TEST_CASE ("Zero-length and single-sample blocks are handled", "[host]")
 {
     dsp::EngineParameters p;

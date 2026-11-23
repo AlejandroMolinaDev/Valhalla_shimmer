@@ -166,7 +166,12 @@ también de punta a punta con un impulso). Ganancias suavizadas 30 ms.
 - `prepareToPlay` es idempotente y sólo realoca si cambia la frecuencia de muestreo.
 - `processBlock` antes de `prepareToPlay` → passthrough seguro.
 - **Bypass del host** (`processBlockBypassed`): el motor recibe silencio, el feedback va a 0, el seco
-  a 1 y el wet a 0 en 50 ms: la cola se vacía sin clicks y no reaparece al reactivar.
+  a 1 y el wet a 0 en 50 ms. Terminada la rampa, `process()` deja el buffer intacto (seco exacto, sin
+  coste de CPU) y limpia una vez todas las líneas, así que la cola antigua no reaparece al reactivar.
+- **Presets como programas**: los 12 presets de fábrica se exponen como *programs* (VST3) / *factory
+  presets* (AU), por lo que aparecen en el menú de presets de FL Studio. La lista de nombres es
+  inmutable (segura desde cualquier hilo); si el host cambia de programa fuera del hilo de mensajes,
+  el preset se aplica de forma asíncrona en él.
 - `getTailLengthSeconds()` estima el tiempo hasta −90 dB a partir de Feedback, Size, Diffusion y
   modo (1–60 s; 120 s con Feedback ≥ 99 %) para que el render y *Smart Disable* de FL Studio no
   corten la cola.

@@ -109,7 +109,8 @@ public:
     void setParameters (const EngineParameters& newParams) noexcept;
 
     /** Host bypass: the dry signal passes at unity, the wet fades out and the loop is flushed
-        (input and feedback ramp to zero over 50 ms) so no stale tail bursts out later. */
+        (input and feedback ramp to zero over 50 ms) so no stale tail bursts out later. Once the
+        ramp has finished, process() leaves the buffer untouched and costs no CPU. */
     void setBypassed (bool shouldBeBypassed) noexcept;
 
     /** In-place stereo processing. Any numSamples >= 0 is valid. */
@@ -158,6 +159,7 @@ private:
     DcBlocker dcL, dcR;
     OverlapMakeup makeupL, makeupR;
 
+    bool flushedWhileBypassed = false;
     float wetRmsL = 0.0f, wetRmsR = 0.0f, inputRms = 0.0f;
     int numSafetyResets = 0;
 };

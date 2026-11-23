@@ -5,64 +5,66 @@
 namespace ab::ui
 {
 
-ModeSelector::ModeSelector (juce::RangedAudioParameter& parameter, const juce::String& title,
-                            const juce::StringArray& labels, const juce::StringArray& tooltips)
-    : attachment (parameter, [this] (float value) { select (static_cast<int> (std::lround (value))); })
+namespace
 {
-    titleLabel.setText (title.toUpperCase(), juce::dontSendNotification);
-    titleLabel.setFont (juce::Font (juce::FontOptions (11.5f)));
-    titleLabel.setColour (juce::Label::textColourId, palette::textDim);
+    constexpr float kFontHeight = 15.0f;
+    constexpr int kArrowSpace = 18;
+
+    juce::Font selectorFont (const juce::Component& c)
+    {
+        if (auto* lnf = dynamic_cast<AuroraLookAndFeel*> (&c.getLookAndFeel()))
+            return lnf->font (kFontHeight);
+        return juce::Font (juce::FontOptions (kFontHeight));
+    }
+} // namespace
+
+ModeSelector::ModeSelector (juce::AudioProcessorValueTreeState& state, const juce::String& paramId,
+                            const juce::String& title, const juce::StringArray& labels, const juce::String& tooltip)
+    : options (labels)
+{
+    titleLabel.setText (title.toLowerCase() + ":", juce::dontSendNotification);
+    titleLabel.setFont (juce::Font (juce::FontOptions (kFontHeight)));
+    titleLabel.setColour (juce::Label::textColourId, palette::text);
+    titleLabel.setJustificationType (juce::Justification::centredRight);
+    titleLabel.setBorderSize ({ 0, 0, 0, 6 });
     titleLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (titleLabel);
 
-    setTitle (title);
-    setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
+    box.addItemList (labels, 1);
+    box.setTooltip (tooltip);
+    box.setTitle (title);
+    box.setDescription (tooltip);
+    box.setJustificationType (juce::Justification::centredLeft);
+    box.setScrollWheelEnabled (true);
+    box.setWantsKeyboardFocus (true);
+    box.setMouseClickGrabsKeyboardFocus (false); // never steal FL Studio's keyboard shortcuts
+    box.setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    addAndMakeVisible (box);
 
-    for (int i = 0; i < labels.size(); ++i)
+    attachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, paramId, box);
+    box.onChange = [this]
     {
-        auto* b = buttons.add (std::make_unique<juce::TextButton> (labels[i]));
-        b->setClickingTogglesState (false);
-        b->setTooltip (tooltips[i]);
-        b->setTitle (title + ": " + labels[i]);
-        b->setWantsKeyboardFocus (true);
-
-        int edges = 0;
-        if (i > 0)
-            edges |= juce::Button::ConnectedOnLeft;
-        if (i < labels.size() - 1)
-            edges |= juce::Button::ConnectedOnRight;
-        b->setConnectedEdges (edges);
-
-        b->onClick = [this, i] { attachment.setValueAsCompleteGesture (static_cast<float> (i)); };
-        addAndMakeVisible (b);
-    }
-
-    attachment.sendInitialUpdate();
+        if (onWidthChanged != nullptr)
+            onWidthChanged();
+    };
+    setTitle (title);
 }
 
-void ModeSelector::select (int index)
+int ModeSelector::getIdealWidth() const
 {
-    for (int i = 0; i < buttons.size(); ++i)
-        buttons[i]->setToggleState (i == index, juce::dontSendNotification);
+    const auto f = selectorFont (*this);
+    const auto valueWidth = juce::roundToInt (juce::GlyphArrangement::getStringWidth (f, box.getText()));
+    const auto titleWidth = juce::roundToInt (juce::GlyphArrangement::getStringWidth (f, titleLabel.getText()));
+    return titleWidth + 8 + valueWidth + kArrowSpace + 4;
 }
 
 void ModeSelector::resized()
 {
     auto bounds = getLocalBounds();
-    titleLabel.setBounds (bounds.removeFromTop (16));
-    bounds.removeFromTop (2);
-
-    const int n = buttons.size();
-    if (n == 0)
-        return;
-
-    const float w = static_cast<float> (bounds.getWidth()) / static_cast<float> (n);
-    for (int i = 0; i < n; ++i)
-    {
-        const auto x0 = bounds.getX() + juce::roundToInt (w * static_cast<float> (i));
-        const auto x1 = bounds.getX() + juce::roundToInt (w * static_cast<float> (i + 1));
-        buttons[i]->setBounds (x0, bounds.getY(), x1 - x0 + (i < n - 1 ? 1 : 0), bounds.getHeight());
-    }
+    const auto f = selectorFont (*this);
+    const auto titleWidth = juce::roundToInt (juce::GlyphArrangement::getStringWidth (f, titleLabel.getText())) + 8;
+    titleLabel.setBounds (bounds.removeFromLeft (titleWidth));
+    box.setBounds (bounds);
 }
 
 } // namespace ab::ui

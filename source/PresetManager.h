@@ -25,9 +25,12 @@ public:
     const std::vector<Preset>& getPresets() const noexcept { return presets; }
 
     bool loadPreset (int index);
+    /** Resets every parameter to its default value ("Init"). */
+    void loadInit();
     void loadNext();
     void loadPrevious();
     bool saveUserPreset (const juce::String& name);
+    bool userPresetExists (const juce::String& name) const;
 
     /** Index of the current preset in getPresets(), or -1 (e.g. "Init" or a deleted file). */
     int getCurrentIndex() const;
@@ -40,6 +43,13 @@ public:
     bool isModified() const noexcept { return modified.load(); }
     void markModified() noexcept { modified = true; }
     void clearModified() noexcept { modified = false; }
+
+    // --- Factory presets as host programs (FL Studio preset menu, AU factory presets) ------------
+    // Built once in the constructor and never modified, so hosts may query them from any thread.
+    int getNumFactoryPresets() const noexcept { return factoryNames.size(); }
+    juce::String getFactoryName (int index) const { return factoryNames[index]; }
+    int getCurrentFactoryIndex() const noexcept { return currentFactory.load(); }
+    void setCurrentFactoryIndex (int index) noexcept { currentFactory = index; }
 
     // --- A/B comparison --------------------------------------------------------------------------
     int getActiveSlot() const noexcept { return activeSlot; }
@@ -56,6 +66,8 @@ private:
     void setCurrentName (const juce::String& name);
 
     std::vector<Preset> presets;
+    juce::StringArray factoryNames;
+    std::atomic<int> currentFactory { -1 };
     juce::String currentName { "Init" };
     mutable juce::CriticalSection nameLock;
     std::atomic<bool> modified { false };

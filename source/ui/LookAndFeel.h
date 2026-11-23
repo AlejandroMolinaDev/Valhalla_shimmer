@@ -43,7 +43,14 @@ public:
     juce::Label* createSliderTextBox (juce::Slider&) override;
     juce::Slider::SliderLayout getSliderLayout (juce::Slider&) override;
 
-    // Buttons (segmented selectors, preset bar)
+    // Mode selectors ("title: value" combo boxes)
+    void drawComboBox (juce::Graphics&, int width, int height, bool isButtonDown, int buttonX, int buttonY,
+                       int buttonW, int buttonH, juce::ComboBox&) override;
+    juce::Font getComboBoxFont (juce::ComboBox&) override;
+    void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
+    juce::PopupMenu::Options getOptionsForComboBoxPopupMenu (juce::ComboBox&, juce::Label&) override;
+
+    // Buttons (preset bar)
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour& backgroundColour,
                                bool isMouseOverButton, bool isButtonDown) override;
     void drawButtonText (juce::Graphics&, juce::TextButton&, bool isMouseOverButton, bool isButtonDown) override;

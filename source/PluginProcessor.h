@@ -18,8 +18,8 @@ class AuroraBloomProcessor final : public juce::AudioProcessor,
                                    private juce::AudioProcessorValueTreeState::Listener
 {
 public:
-    static constexpr int kDefaultEditorWidth = 760;
-    static constexpr int kDefaultEditorHeight = 420;
+    static constexpr int kDefaultEditorWidth = 860;
+    static constexpr int kDefaultEditorHeight = 360;
 
     AuroraBloomProcessor();
     ~AuroraBloomProcessor() override;
@@ -42,10 +42,12 @@ public:
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override;
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return {}; }
+    // Factory presets are exposed as host programs, so they appear in FL Studio's own preset
+    // menu (and as AU factory presets in Logic / GarageBand).
+    int getNumPrograms() override;
+    int getCurrentProgram() override;
+    void setCurrentProgram (int index) override;
+    const juce::String getProgramName (int index) override;
     void changeProgramName (int, const juce::String&) override {}
 
     void getStateInformation (juce::MemoryBlock& destData) override;
@@ -79,5 +81,6 @@ private:
 
     std::atomic<int> editorWidth { kDefaultEditorWidth };
 
+    JUCE_DECLARE_WEAK_REFERENCEABLE (AuroraBloomProcessor)
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AuroraBloomProcessor)
 };

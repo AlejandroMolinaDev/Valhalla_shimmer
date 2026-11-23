@@ -245,6 +245,23 @@ void ShimmerEngine::process (float* left, float* right, int numSamples) noexcept
     if (! prepared || numSamples <= 0 || left == nullptr || right == nullptr)
         return;
 
+    // Fully bypassed by the host (after the 50 ms ramp): the buffer already holds the dry
+    // signal, so skip all DSP (no CPU while bypassed in FL Studio) and flush the tank once so
+    // a stale tail never resurfaces when the plugin is re-enabled.
+    if (bypassAmount.getTarget() >= 1.0f && ! bypassAmount.isSmoothing())
+    {
+        if (! flushedWhileBypassed)
+        {
+            applyMode (params.reverbMode);
+            duckGain = 1.0f;
+            flushedWhileBypassed = true;
+        }
+        wetRmsL = wetRmsR = 0.0f;
+        inputRms = 0.0f;
+        return;
+    }
+    flushedWhileBypassed = false;
+
     const ScopedFlushDenormals noDenormals;
     float wetSumL = 0.0f, wetSumR = 0.0f, inSum = 0.0f;
 

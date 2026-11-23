@@ -9,8 +9,12 @@
 #include "ui/ModeSelector.h"
 #include "ui/PresetBar.h"
 
-/** Fixed 760 x 420 design canvas; the editor scales it (75 % - 200 %) with a fixed aspect ratio,
-    so every element stays vector-sharp at any size. */
+/** Fixed 860 x 360 design canvas; the editor scales it (75 % - 200 %) with a fixed aspect ratio,
+    so every element stays vector-sharp at any size.
+
+    Layout: header (logo + preset bar), a slim tail visualizer, one row of nine knobs with small
+    group captions (output / shimmer / space / tone / motion) and the three mode selectors as
+    "title: value" text menus along the bottom. */
 class AuroraBloomCanvas final : public juce::Component
 {
 public:
@@ -22,20 +26,23 @@ public:
 private:
     struct Group
     {
-        juce::String title;
-        std::vector<ab::ui::Knob*> knobs;
-        juce::Rectangle<int> bounds;
+        juce::String caption;
+        int firstKnob;
+        int numKnobs;
     };
 
     void paintLogo (juce::Graphics&, juce::Rectangle<float> area);
+    void paintCaptions (juce::Graphics&);
 
     ab::ui::PresetBar presetBar;
     ab::ui::DecayVisualizer visualizer;
 
-    ab::ui::Knob pitch, size, diffusion, feedback, lowCut, highCut, modRate, modDepth, mix;
+    ab::ui::Knob mix, pitch, feedback, diffusion, size, lowCut, highCut, modRate, modDepth;
+    std::array<ab::ui::Knob*, 9> knobs;
     std::vector<Group> groups;
+    juce::Rectangle<int> knobRow;
 
-    std::unique_ptr<ab::ui::ModeSelector> reverbMode, pitchMode, colorMode;
+    ab::ui::ModeSelector reverbMode, pitchMode, colorMode;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AuroraBloomCanvas)
 };

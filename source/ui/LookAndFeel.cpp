@@ -38,6 +38,11 @@ AuroraLookAndFeel::AuroraLookAndFeel()
     setColour (juce::AlertWindow::backgroundColourId, juce::Colour (0xff111933));
     setColour (juce::AlertWindow::textColourId, text);
     setColour (juce::AlertWindow::outlineColourId, panelBorder);
+    setColour (juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    setColour (juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    setColour (juce::ComboBox::textColourId, auroraCyan);
+    setColour (juce::ComboBox::arrowColourId, textDim);
+    setColour (juce::ComboBox::focusedOutlineColourId, focus);
     setColour (juce::TooltipWindow::backgroundColourId, juce::Colour (0xf20d1429));
     setColour (juce::TooltipWindow::textColourId, text);
     setColour (juce::TooltipWindow::outlineColourId, auroraCyan.withAlpha (0.4f));
@@ -68,62 +73,61 @@ void AuroraLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w
                                           float startAngle, float endAngle, juce::Slider& slider)
 {
     using namespace palette;
+    // Flat disc with a short pointer tick, tinted with the knob's own accent colour (the row of
+    // knobs runs through the aurora gradient), plus a thin value arc around it.
     const auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
     const float size = juce::jmin (bounds.getWidth(), bounds.getHeight());
-    const auto area = bounds.withSizeKeepingCentre (size, size).reduced (5.0f);
+    const auto area = bounds.withSizeKeepingCentre (size, size).reduced (4.0f);
     const auto centre = area.getCentre();
     const float radius = area.getWidth() * 0.5f;
-    const float arcRadius = radius - 3.0f;
+    const float arcRadius = radius - 1.5f;
+    const float discRadius = radius - 7.0f;
     const float angle = startAngle + sliderPos * (endAngle - startAngle);
     const bool bipolar = static_cast<bool> (slider.getProperties().getWithDefault ("bipolar", false));
     const bool enabled = slider.isEnabled();
+    const bool hover = slider.isMouseOverOrDragging();
 
-    // Track
+    const auto accentValue = slider.getProperties().getWithDefault ("accent", static_cast<juce::int64> (auroraCyan.getARGB()));
+    const auto accent = juce::Colour (static_cast<juce::uint32> (static_cast<juce::int64> (accentValue)));
+
+    // Track and value arc
     juce::Path track;
     track.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f, startAngle, endAngle, true);
-    g.setColour (track.isEmpty() ? juce::Colours::transparentBlack : palette::track);
-    g.strokePath (track, juce::PathStrokeType (3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.setColour (palette::track);
+    g.strokePath (track, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // Value arc (from the centre for bipolar parameters such as Pitch)
     const float from = bipolar ? (startAngle + endAngle) * 0.5f : startAngle;
     if (std::abs (angle - from) > 0.001f)
     {
         juce::Path value;
         value.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f, juce::jmin (from, angle),
                              juce::jmax (from, angle), true);
-        auto grad = aurora (area.getBottomLeft(), area.getTopRight(), enabled ? 1.0f : 0.35f);
-        g.setGradientFill (grad);
-        g.strokePath (value, juce::PathStrokeType (3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-        // Soft glow at the tip
-        const auto tip = centre.getPointOnCircumference (arcRadius, angle);
-        g.setColour (auroraCyan.withAlpha (enabled ? 0.25f : 0.08f));
-        g.fillEllipse (juce::Rectangle<float> (12.0f, 12.0f).withCentre (tip));
+        g.setColour (accent.withAlpha (enabled ? 0.95f : 0.35f));
+        g.strokePath (value, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    // Body
-    const float bodyRadius = radius * 0.70f;
-    const auto body = juce::Rectangle<float> (bodyRadius * 2.0f, bodyRadius * 2.0f).withCentre (centre);
-    g.setColour (juce::Colours::black.withAlpha (0.35f));
-    g.fillEllipse (body.translated (0.0f, 2.0f).expanded (1.0f));
-    g.setGradientFill (juce::ColourGradient (knobBodyHighlight, body.getX(), body.getY(), knobBody,
-                                             body.getX(), body.getBottom(), false));
-    g.fillEllipse (body);
-    g.setColour (juce::Colours::white.withAlpha (0.08f));
-    g.drawEllipse (body.reduced (0.5f), 1.0f);
+    // Disc
+    const auto disc = juce::Rectangle<float> (discRadius * 2.0f, discRadius * 2.0f).withCentre (centre);
+    const auto fill = knobBody.interpolatedWith (accent, hover ? 0.42f : 0.32f);
+    g.setColour (juce::Colours::black.withAlpha (0.30f));
+    g.fillEllipse (disc.translated (0.0f, 2.0f));
+    g.setColour (enabled ? fill : fill.withSaturation (0.0f));
+    g.fillEllipse (disc);
+    g.setColour (juce::Colours::white.withAlpha (0.06f));
+    g.drawEllipse (disc.reduced (0.5f), 1.0f);
 
-    // Pointer
+    // Pointer tick near the rim
     juce::Path pointer;
-    pointer.startNewSubPath (centre.getPointOnCircumference (bodyRadius * 0.35f, angle));
-    pointer.lineTo (centre.getPointOnCircumference (bodyRadius * 0.82f, angle));
+    pointer.startNewSubPath (centre.getPointOnCircumference (discRadius * 0.58f, angle));
+    pointer.lineTo (centre.getPointOnCircumference (discRadius * 0.90f, angle));
     g.setColour (enabled ? text : textDim);
-    g.strokePath (pointer, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.strokePath (pointer, juce::PathStrokeType (3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Keyboard focus ring
     if (slider.hasKeyboardFocus (true))
     {
         g.setColour (focus.withAlpha (0.9f));
-        g.drawEllipse (area.expanded (2.5f), 1.5f);
+        g.drawEllipse (area.expanded (2.0f), 1.5f);
     }
 }
 
@@ -132,7 +136,7 @@ juce::Slider::SliderLayout AuroraLookAndFeel::getSliderLayout (juce::Slider& sli
     // Square knob with the value right underneath, the pair centred vertically.
     juce::Slider::SliderLayout layout;
     const auto bounds = slider.getLocalBounds();
-    constexpr int textHeight = 18;
+    constexpr int textHeight = 20;
     const int knob = juce::jmin (bounds.getWidth(), bounds.getHeight() - textHeight);
     const int top = bounds.getY() + (bounds.getHeight() - (knob + textHeight + 2)) / 2;
     layout.sliderBounds = { bounds.getX(), top, bounds.getWidth(), knob };
@@ -143,7 +147,7 @@ juce::Slider::SliderLayout AuroraLookAndFeel::getSliderLayout (juce::Slider& sli
 juce::Label* AuroraLookAndFeel::createSliderTextBox (juce::Slider& slider)
 {
     auto* label = LookAndFeel_V4::createSliderTextBox (slider);
-    label->setFont (font (13.0f));
+    label->setFont (font (14.0f));
     label->setJustificationType (juce::Justification::centred);
     label->setColour (juce::Label::textColourId, palette::text);
     label->setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
@@ -153,6 +157,50 @@ juce::Label* AuroraLookAndFeel::createSliderTextBox (juce::Slider& slider)
     label->setColour (juce::Label::textWhenEditingColourId, palette::text);
     label->setMouseCursor (juce::MouseCursor::IBeamCursor);
     return label;
+}
+
+// =============================================================================================
+void AuroraLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool, int, int, int, int,
+                                      juce::ComboBox& box)
+{
+    // Text-only selector: a small chevron after the value, an underline on hover / focus.
+    const auto bounds = juce::Rectangle<int> (width, height).toFloat();
+    const bool hover = box.isMouseOver (true);
+
+    // Chevron right after the value text.
+    const float textWidth = juce::GlyphArrangement::getStringWidth (getComboBoxFont (box), box.getText());
+    const float arrowSize = 6.0f;
+    const auto arrowCentre = juce::Point<float> (juce::jmin (bounds.getRight() - 6.0f, textWidth + 10.0f),
+                                                 bounds.getCentreY() + 1.0f);
+    juce::Path arrow;
+    arrow.startNewSubPath (arrowCentre.x - arrowSize * 0.5f, arrowCentre.y - arrowSize * 0.25f);
+    arrow.lineTo (arrowCentre.x, arrowCentre.y + arrowSize * 0.25f);
+    arrow.lineTo (arrowCentre.x + arrowSize * 0.5f, arrowCentre.y - arrowSize * 0.25f);
+    g.setColour (box.findColour (hover ? juce::ComboBox::textColourId : juce::ComboBox::arrowColourId));
+    g.strokePath (arrow, juce::PathStrokeType (1.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    if (hover || box.hasKeyboardFocus (true))
+    {
+        g.setColour (box.hasKeyboardFocus (true) ? palette::focus : palette::auroraCyan.withAlpha (0.45f));
+        g.fillRect (juce::Rectangle<float> (0.0f, bounds.getBottom() - 2.0f, juce::jmin (bounds.getWidth(), textWidth + 16.0f), 1.0f));
+    }
+}
+
+juce::Font AuroraLookAndFeel::getComboBoxFont (juce::ComboBox&)
+{
+    return font (15.0f);
+}
+
+void AuroraLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
+{
+    label.setBounds (0, 0, box.getWidth() - 18, box.getHeight());
+    label.setFont (getComboBoxFont (box));
+    label.setBorderSize ({ 0, 0, 0, 0 });
+}
+
+juce::PopupMenu::Options AuroraLookAndFeel::getOptionsForComboBoxPopupMenu (juce::ComboBox& box, juce::Label& label)
+{
+    return LookAndFeel_V4::getOptionsForComboBoxPopupMenu (box, label).withMinimumWidth (juce::jmax (140, box.getWidth()));
 }
 
 // =============================================================================================

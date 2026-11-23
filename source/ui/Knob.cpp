@@ -17,7 +17,8 @@ KnobSlider::KnobSlider()
     setRotaryParameters (juce::MathConstants<float>::pi * 1.22f, juce::MathConstants<float>::pi * 2.78f, true);
     setTextBoxStyle (juce::Slider::TextBoxBelow, false, 80, 18);
     setTextBoxIsEditable (true);
-    setWantsKeyboardFocus (true);
+    setWantsKeyboardFocus (true);           // reachable with Tab...
+    setMouseClickGrabsKeyboardFocus (false); // ...but a click never steals FL Studio's shortcuts
     setMouseCursor (juce::MouseCursor::UpDownResizeCursor);
     setScrollWheelEnabled (true);
 }
@@ -48,7 +49,10 @@ void KnobSlider::mouseDrag (const juce::MouseEvent& e)
     const auto delta = (lastDragPos.y - e.position.y) + (e.position.x - lastDragPos.x);
     lastDragPos = e.position;
 
-    const double pixels = kPixelsForFullRange * (e.mods.isCommandDown() ? kFineFactor : 1.0);
+    // Ctrl/Cmd = fine. On a semitone-snapping knob (Pitch) Shift selects 0.01 st steps, so it
+    // also slows the drag down to make those steps reachable.
+    const bool fine = e.mods.isCommandDown() || (snapToIntegers && e.mods.isShiftDown());
+    const double pixels = kPixelsForFullRange * (fine ? kFineFactor : 1.0);
     dragProportion = juce::jlimit (0.0, 1.0, dragProportion + static_cast<double> (delta) / pixels);
     setValue (snap (proportionOfLengthToValue (dragProportion), e.mods), juce::sendNotificationSync);
 }
@@ -116,10 +120,10 @@ bool KnobSlider::keyPressed (const juce::KeyPress& key)
 Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& paramId, const juce::String& title,
             const juce::String& tooltip, bool bipolar, bool snapToIntegers)
 {
-    titleLabel.setText (title.toUpperCase(), juce::dontSendNotification);
+    titleLabel.setText (title.toLowerCase(), juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
-    titleLabel.setFont (juce::Font (juce::FontOptions (11.5f)));
-    titleLabel.setColour (juce::Label::textColourId, palette::textDim);
+    titleLabel.setFont (juce::Font (juce::FontOptions (15.0f)));
+    titleLabel.setColour (juce::Label::textColourId, palette::text);
     titleLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (titleLabel);
 
@@ -136,10 +140,16 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
         slider.setDefaultValue (static_cast<double> (param->convertFrom0to1 (param->getDefaultValue())));
 }
 
+void Knob::setAccent (juce::Colour colour)
+{
+    slider.getProperties().set ("accent", static_cast<juce::int64> (colour.getARGB()));
+    slider.repaint();
+}
+
 void Knob::resized()
 {
     auto bounds = getLocalBounds();
-    titleLabel.setBounds (bounds.removeFromTop (16));
+    titleLabel.setBounds (bounds.removeFromTop (20));
     slider.setBounds (bounds);
 }
 

@@ -12,6 +12,9 @@ namespace
 PresetManager::PresetManager (juce::AudioProcessorValueTreeState& state) : apvts (state)
 {
     refresh();
+    for (const auto& p : presets)
+        if (p.isFactory)
+            factoryNames.add (p.name);
 }
 
 juce::File PresetManager::getUserPresetFolder()
@@ -71,9 +74,26 @@ bool PresetManager::loadPreset (int index)
         return false;
 
     setCurrentName (preset.name);
+    currentFactory = preset.isFactory ? index : -1;
     modified = false;
     sendChangeMessage();
     return true;
+}
+
+void PresetManager::loadInit()
+{
+    for (const auto& id : ab::params::allIds())
+        if (auto* param = apvts.getParameter (id))
+        {
+            param->beginChangeGesture();
+            param->setValueNotifyingHost (param->getDefaultValue());
+            param->endChangeGesture();
+        }
+
+    setCurrentName ("Init");
+    currentFactory = -1;
+    modified = false;
+    sendChangeMessage();
 }
 
 int PresetManager::getCurrentIndex() const
@@ -119,6 +139,12 @@ bool PresetManager::saveUserPreset (const juce::String& rawName)
     return true;
 }
 
+bool PresetManager::userPresetExists (const juce::String& rawName) const
+{
+    const auto name = juce::File::createLegalFileName (rawName.trim());
+    return name.isNotEmpty() && getUserPresetFolder().getChildFile (name + kPresetExtension).existsAsFile();
+}
+
 juce::String PresetManager::getCurrentName() const
 {
     const juce::ScopedLock sl (nameLock);
@@ -128,6 +154,7 @@ juce::String PresetManager::getCurrentName() const
 void PresetManager::restoreCurrentName (const juce::String& name)
 {
     setCurrentName (name);
+    currentFactory = factoryNames.indexOf (name); // immutable list: safe from any thread
     modified = false;
 }
 

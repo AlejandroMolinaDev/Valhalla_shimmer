@@ -37,6 +37,7 @@ PresetBar::PresetBar (PresetManager& manager) : presets (manager)
     for (auto* b : { &previous, &next, &name, &save, &slotA, &slotB, &copy })
     {
         b->setWantsKeyboardFocus (true);
+        b->setMouseClickGrabsKeyboardFocus (false); // keep FL Studio's keyboard shortcuts working
         addAndMakeVisible (b);
     }
 
@@ -92,6 +93,8 @@ void PresetBar::showPresetMenu()
     const int current = presets.getCurrentIndex();
 
     juce::PopupMenu menu;
+    menu.addItem (10001, "Init (default settings)", true, current < 0 && presets.getCurrentName() == "Init");
+    menu.addSeparator();
     juce::String lastCategory;
     bool userHeaderAdded = false;
     for (size_t i = 0; i < list.size(); ++i)
@@ -118,6 +121,11 @@ void PresetBar::showPresetMenu()
                         {
                             if (safe == nullptr || result == 0)
                                 return;
+                            if (result == 10001)
+                            {
+                                safe->presets.loadInit();
+                                return;
+                            }
                             if (result == 10000)
                             {
                                 const auto folder = PresetManager::getUserPresetFolder();
@@ -142,8 +150,34 @@ void PresetBar::showSaveDialog()
                              juce::ModalCallbackFunction::create (
                                  [safe = juce::Component::SafePointer<PresetBar> (this), window] (int result)
                                  {
-                                     if (safe != nullptr && result == 1)
-                                         safe->presets.saveUserPreset (window->getTextEditorContents ("name"));
+                                     if (safe == nullptr || result != 1)
+                                         return;
+
+                                     const auto presetName = window->getTextEditorContents ("name").trim();
+                                     if (presetName.isEmpty())
+                                         return;
+
+                                     if (! safe->presets.userPresetExists (presetName))
+                                     {
+                                         safe->presets.saveUserPreset (presetName);
+                                         return;
+                                     }
+
+                                     // Never overwrite an existing user preset without asking.
+                                     juce::AlertWindow::showAsync (
+                                         juce::MessageBoxOptions()
+                                             .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                                             .withTitle ("Replace preset?")
+                                             .withMessage ("A user preset called \"" + presetName
+                                                           + "\" already exists. Replace it?")
+                                             .withButton ("Replace")
+                                             .withButton ("Cancel")
+                                             .withAssociatedComponent (safe.getComponent()),
+                                         [safe, presetName] (int answer)
+                                         {
+                                             if (safe != nullptr && answer == 1)
+                                                 safe->presets.saveUserPreset (presetName);
+                                         });
                                  }),
                              true);
 }

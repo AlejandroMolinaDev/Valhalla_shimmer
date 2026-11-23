@@ -144,6 +144,43 @@ double AuroraBloomProcessor::getTailLengthSeconds() const
     return ab::dsp::ShimmerEngine::estimateTailSeconds (paramRefs.load());
 }
 
+int AuroraBloomProcessor::getNumPrograms()
+{
+    return juce::jmax (1, presetManager.getNumFactoryPresets());
+}
+
+int AuroraBloomProcessor::getCurrentProgram()
+{
+    return juce::jmax (0, presetManager.getCurrentFactoryIndex());
+}
+
+const juce::String AuroraBloomProcessor::getProgramName (int index)
+{
+    return juce::isPositiveAndBelow (index, presetManager.getNumFactoryPresets()) ? presetManager.getFactoryName (index)
+                                                                                 : juce::String ("Init");
+}
+
+void AuroraBloomProcessor::setCurrentProgram (int index)
+{
+    if (! juce::isPositiveAndBelow (index, presetManager.getNumFactoryPresets()))
+        return;
+
+    // Factory presets come first in the preset list, so the program index is the preset index.
+    presetManager.setCurrentFactoryIndex (index);
+    if (juce::MessageManager::existsAndIsCurrentThread())
+    {
+        presetManager.loadPreset (index);
+        return;
+    }
+
+    // Some hosts change programs from another thread: apply the preset on the message thread.
+    juce::MessageManager::callAsync ([safe = juce::WeakReference<AuroraBloomProcessor> (this), index]
+    {
+        if (auto* p = safe.get())
+            p->presetManager.loadPreset (index);
+    });
+}
+
 juce::AudioProcessorEditor* AuroraBloomProcessor::createEditor()
 {
     return new AuroraBloomEditor (*this);

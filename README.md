@@ -12,7 +12,9 @@ apilando octavas ascendentes mientras crece la densidad de ecos. Plugin **VST3**
 - Diffusion de 0 (delay ping-pong) a 1 (metálico), Feedback hasta colas casi infinitas y estable
   al 100 %.
 - Latencia 0, < 3 % de CPU por instancia a 48 kHz, salida idéntica con cualquier tamaño de bloque.
-- Interfaz vectorial redimensionable (75–200 %), 12 presets de fábrica, presets de usuario y A/B.
+- Interfaz vectorial redimensionable (75–200 %) con las 9 perillas en una sola fila y los tres
+  modos como menús de texto; 12 presets de fábrica (también en el menú de presets de FL), presets
+  de usuario y A/B.
 
 ---
 
@@ -56,7 +58,13 @@ El binario está enlazado con el runtime estático de MSVC (`/MT`): no necesita 
   cortan. Con Feedback al 100 % la cola es prácticamente infinita: usa *Leave remainder* al
   renderizar si quieres conservarla.
 - El bypass del host (botón de la pista o del slot) deja pasar la señal seca y vacía la cola
-  suavemente, sin clicks.
+  suavemente, sin clicks. Mientras está en bypass no consume CPU, y al reactivarlo la cola antigua
+  no reaparece.
+- Los 12 presets de fábrica aparecen también en el **menú de presets propio de FL** (la flecha de
+  presets de la ventana del plugin), además de en el navegador del plugin.
+- Hacer clic en las perillas no le quita el foco del teclado a FL: la barra espaciadora y los
+  atajos siguen funcionando con la ventana del plugin abierta. Para controlar el plugin con el
+  teclado, entra con **Tab**.
 - Todos los parámetros son automatizables (*Browse parameters* / clic derecho → *Create automation
   clip*). Los modos aparecen con su nombre.
 - El estado (parámetros, preset actual y tamaño de la ventana) se guarda en el proyecto `.flp` y en
@@ -77,9 +85,9 @@ El binario está enlazado con el runtime estático de MSVC (`/MT`): no necesita 
 | **High Cut** | 500 Hz–20 kHz | 8 kHz | Pasa-bajos dentro del lazo: cada pasada la cola es más oscura (absorción del aire). |
 | **Mod Rate** | 0,01–10 Hz | 0,40 Hz | Velocidad media de los moduladores aleatorios (uno por línea de retardo). |
 | **Mod Depth** | 0–100 % | 15 % | Profundidad de modulación (0–64 muestras @ 48 kHz): chorus y desafinación, mayor con Diffusion alto. |
-| **Reverb Mode** | Mono / Big / Medium / Small | Medium | Tamaño y densidad base. Mono suma L+R a la entrada y es el más grande. |
+| **Reverb Mode** | Mono / Big Stereo / Medium Stereo / Small Stereo | Medium Stereo | Tamaño y densidad base. Mono suma L+R a la entrada y es el más grande. |
 | **Pitch Mode** | Single / Dual / Single Rev / Dual Rev / Bypass | Single | Un shifter, dos (+/−), con granos invertidos (más suave, tipo órgano) o sin pitch. |
-| **Color** | Bright / Dark | Bright | Dark añade un pasa-bajos empinado (~10 kHz) dentro del lazo, estilo reverb digital vintage. |
+| **Color Mode** | Bright / Dark | Bright | Dark añade un pasa-bajos empinado (~10 kHz) dentro del lazo, estilo reverb digital vintage. |
 
 > **Nota sobre colas infinitas.** Con Pitch en *Single* cada pasada sube toda la energía (p. ej. una
 > octava), que acaba saliendo por High Cut: incluso con Feedback al 100 % la cola termina, cada vez
@@ -88,7 +96,12 @@ El binario está enlazado con el runtime estático de MSVC (`/MT`): no necesita 
 
 ### Interacción con la interfaz
 
-- **Arrastrar** vertical u horizontalmente · **Ctrl/Cmd + arrastrar** = ajuste fino.
+- Las 9 perillas van en una fila, en el orden mix · pitch · feedback · diffusion · size · low cut ·
+  high cut · mod rate · mod depth, agrupadas por pequeños rótulos (output, shimmer, space, tone,
+  motion). Los tres modos están abajo como menús de texto (`reverb mode: medium stereo ▾`): clic
+  para elegir, rueda del ratón o flechas para recorrer las opciones.
+- **Arrastrar** vertical u horizontalmente · **Ctrl/Cmd + arrastrar** = ajuste fino (en Pitch,
+  **Shift + arrastrar** también afina y desbloquea los pasos de 0,01 st).
 - **Doble clic** = valor por defecto · **rueda del ratón** (Ctrl/Cmd = fino).
 - **Clic en el valor** para escribirlo (acepta `8k`, `250 Hz`, `-7 st`, …).
 - **Teclado**: Tab para moverse, flechas (Ctrl/Cmd = fino), Re Pág/Av Pág, Inicio/Fin, Supr = defecto.
@@ -97,9 +110,10 @@ El binario está enlazado con el runtime estático de MSVC (`/MT`): no necesita 
 
 ### Presets
 
-Barra superior: `<` / `>` recorren los presets, el nombre abre el menú (fábrica y usuario),
-**Save** guarda un preset de usuario en `Documentos/Aurora Bloom/Presets/` y **A / B / Copy**
-permiten comparar dos ajustes. Un `*` junto al nombre indica cambios sin guardar.
+Barra superior: `<` / `>` recorren los presets, el nombre abre el menú (*Init* para volver a los
+valores por defecto, presets de fábrica y de usuario), **Save** guarda un preset de usuario en
+`Documentos/Aurora Bloom/Presets/` (pide confirmación antes de sobrescribir uno existente) y
+**A / B / Copy** permiten comparar dos ajustes. Un `*` junto al nombre indica cambios sin guardar.
 
 | Preset | Categoría | Ajustes clave |
 |---|---|---|

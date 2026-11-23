@@ -154,7 +154,7 @@ TEST_CASE ("Test 9 - APVTS state save and restore", "[plugin][state]")
         setPlain (a, id::reverbMode, 0.0f);
         setPlain (a, id::pitchMode, 3.0f);
         setPlain (a, id::colorMode, 1.0f);
-        a.setEditorWidth (1140);
+        a.setEditorWidth (1290);
         a.getStateInformation (state);
     }
 
@@ -173,7 +173,7 @@ TEST_CASE ("Test 9 - APVTS state save and restore", "[plugin][state]")
     CHECK (plainValue (b, id::reverbMode) == 0.0f);
     CHECK (plainValue (b, id::pitchMode) == 3.0f);
     CHECK (plainValue (b, id::colorMode) == 1.0f);
-    CHECK (b.getEditorWidth() == 1140);
+    CHECK (b.getEditorWidth() == 1290);
 
     // Garbage or foreign state must be ignored without crashing.
     const char junk[] = "not a valid state";
@@ -212,6 +212,49 @@ TEST_CASE ("Factory presets load and round trip through XML", "[plugin][presets]
     REQUIRE (PresetManager::applyPresetXml (other.getApvts(), *xml));
     for (const auto& id : ab::params::allIds())
         CHECK_THAT (plainValue (other, id.toRawUTF8()), WithinAbs (plainValue (proc, id.toRawUTF8()), 1.0e-3));
+}
+
+TEST_CASE ("Factory presets are exposed as host programs (FL Studio preset menu)", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI juceInit;
+    AuroraBloomProcessor proc;
+    namespace id = ab::params::id;
+
+    REQUIRE (proc.getNumPrograms() == 12);
+    CHECK (proc.getProgramName (0) == "Octave Halo");
+    CHECK (proc.getProgramName (9) == "Endless Pad");
+
+    proc.setCurrentProgram (9);
+    CHECK (proc.getCurrentProgram() == 9);
+    CHECK (proc.getPresetManager().getCurrentName() == "Endless Pad");
+    CHECK_THAT (plainValue (proc, id::feedback), WithinAbs (100.0, 0.01));
+
+    // Out-of-range program changes are ignored.
+    proc.setCurrentProgram (99);
+    CHECK (proc.getCurrentProgram() == 9);
+
+    // The program survives a state round trip through its preset name.
+    juce::MemoryBlock state;
+    proc.getStateInformation (state);
+    AuroraBloomProcessor other;
+    other.setStateInformation (state.getData(), static_cast<int> (state.getSize()));
+    CHECK (other.getCurrentProgram() == 9);
+}
+
+TEST_CASE ("Init resets every parameter to its default", "[plugin][presets]")
+{
+    juce::ScopedJuceInitialiser_GUI juceInit;
+    AuroraBloomProcessor proc;
+    namespace id = ab::params::id;
+
+    proc.setCurrentProgram (5);
+    proc.getPresetManager().loadInit();
+    CHECK (proc.getPresetManager().getCurrentName() == "Init");
+    CHECK_FALSE (proc.getPresetManager().isModified());
+    for (auto* p : proc.getParameters())
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+            CHECK_THAT (ranged->getValue(), WithinAbs (ranged->getDefaultValue(), 1.0e-6));
+    CHECK_THAT (plainValue (proc, id::pitch), WithinAbs (12.0, 1.0e-4));
 }
 
 TEST_CASE ("A/B comparison swaps between two parameter sets", "[plugin][presets]")
@@ -359,15 +402,15 @@ TEST_CASE ("Editor opens, scales with a fixed aspect ratio and remembers its siz
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
     AuroraBloomProcessor proc;
-    proc.setEditorWidth (1140);
+    proc.setEditorWidth (1290);
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (proc.createEditor());
     REQUIRE (editor != nullptr);
-    CHECK (editor->getWidth() == 1140);
-    CHECK (editor->getHeight() == 630);
+    CHECK (editor->getWidth() == 1290);
+    CHECK (editor->getHeight() == 540);
 
-    editor->setSize (570, 315);
-    CHECK (proc.getEditorWidth() == 570);
+    editor->setSize (645, 270);
+    CHECK (proc.getEditorWidth() == 645);
     editor.reset();
 }
 
@@ -400,9 +443,9 @@ TEST_CASE ("Editor snapshot (writes PNG to $AB_SNAPSHOT_DIR)", "[.snapshot]")
             vis->advanceFrame();
     }
 
-    for (const int width : { 760, 1520 })
+    for (const int width : { 860, 1720 })
     {
-        editor->setSize (width, width * 420 / 760);
+        editor->setSize (width, width * 360 / 860);
         const auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);
         juce::File file (juce::File (dir).getChildFile ("editor_" + juce::String (width) + ".png"));
         file.deleteFile();
