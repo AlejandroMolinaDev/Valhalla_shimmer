@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Undertow" category="Shimmer" version="1">
+  <PARAM id="mix" value="40"/>
+  <PARAM id="pitch" value="-12"/>
+  <PARAM id="feedback" value="70"/>
+  <PARAM id="diffusion" value="0.85"/>
+  <PARAM id="size" value="75"/>
+  <PARAM id="lowCut" value="30"/>
+  <PARAM id="highCut" value="6000"/>
+  <PARAM id="modRate" value="0.25"/>
+  <PARAM id="modDepth" value="20"/>
+  <PARAM id="reverbMode" value="1"/>
+  <PARAM id="pitchMode" value="0"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>

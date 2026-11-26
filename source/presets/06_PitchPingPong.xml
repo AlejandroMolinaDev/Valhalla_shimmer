@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Pitch Ping-Pong" category="Delay" version="1">
+  <PARAM id="mix" value="35"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="55"/>
+  <PARAM id="diffusion" value="0.0"/>
+  <PARAM id="size" value="55"/>
+  <PARAM id="lowCut" value="150"/>
+  <PARAM id="highCut" value="6000"/>
+  <PARAM id="modRate" value="0.4"/>
+  <PARAM id="modDepth" value="0"/>
+  <PARAM id="reverbMode" value="2"/>
+  <PARAM id="pitchMode" value="0"/>
+  <PARAM id="colorMode" value="0"/>
+</AuroraBloomPreset>

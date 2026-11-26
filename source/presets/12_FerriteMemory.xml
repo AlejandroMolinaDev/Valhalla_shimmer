@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AuroraBloomPreset name="Ferrite Memory" category="Vintage" version="1">
+  <PARAM id="mix" value="45"/>
+  <PARAM id="pitch" value="12"/>
+  <PARAM id="feedback" value="72"/>
+  <PARAM id="diffusion" value="0.8"/>
+  <PARAM id="size" value="65"/>
+  <PARAM id="lowCut" value="100"/>
+  <PARAM id="highCut" value="6500"/>
+  <PARAM id="modRate" value="0.6"/>
+  <PARAM id="modDepth" value="25"/>
+  <PARAM id="reverbMode" value="0"/>
+  <PARAM id="pitchMode" value="2"/>
+  <PARAM id="colorMode" value="1"/>
+</AuroraBloomPreset>

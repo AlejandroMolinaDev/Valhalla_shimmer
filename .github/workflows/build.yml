@@ -65,7 +65,11 @@ jobs:
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel 4
 
       - name: Run tests
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure
+        shell: bash
+        run: |
+          RUN=""
+          if [ "$RUNNER_OS" == "Linux" ]; then RUN="xvfb-run -a"; fi
+          $RUN ctest --test-dir build -C $BUILD_TYPE --output-on-failure
 
       - name: Check Windows binary has no dynamic MSVC runtime dependency
         if: runner.os == 'Windows'

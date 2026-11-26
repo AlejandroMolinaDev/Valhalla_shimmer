@@ -1,0 +1,168 @@
+#pragma once
+
+#include "DiffuserNetwork.h"
+#include "GrainPitchShifter.h"
+#include "LoopFilters.h"
+#include "ReverbModes.h"
+#include "Smoothers.h"
+
+namespace ab::dsp
+{
+
+enum class PitchMode : int
+{
+    Single = 0,
+    Dual,
+    SingleReverse,
+    DualReverse,
+    Bypass
+};
+
+enum class ColorMode : int
+{
+    Bright = 0,
+    Dark
+};
+
+inline constexpr int kNumPitchModes = 5;
+inline constexpr int kNumColorModes = 2;
+
+/** Plain-value parameter snapshot handed to the engine once per block. */
+struct EngineParameters
+{
+    float mix = 0.5f;              // 0..1
+    float pitchSemitones = 12.0f;  // -12..+12
+    float feedback = 0.6f;         // 0..1
+    float diffusion = 0.8f;        // 0..1
+    float size = 0.6f;             // 0..1
+    float lowCutHz = 20.0f;        // 10..2000
+    float highCutHz = 8000.0f;     // 500..20000
+    float modRateHz = 0.4f;        // 0.01..10
+    float modDepth = 0.15f;        // 0..1
+    ReverbMode reverbMode = ReverbMode::MediumStereo;
+    PitchMode pitchMode = PitchMode::Single;
+    ColorMode colorMode = ColorMode::Bright;
+};
+
+/** One-pole DC blocker (~5 Hz) used inside the feedback loop. */
+class DcBlocker
+{
+public:
+    void prepare (double sampleRate) noexcept;
+    void reset() noexcept { x1 = y1 = 0.0f; }
+    float process (float x) noexcept
+    {
+        const float y = x - x1 + r * y1;
+        x1 = x;
+        y1 = y;
+        return y;
+    }
+
+private:
+    float r = 0.999f, x1 = 0.0f, y1 = 0.0f;
+};
+
+/** Make-up for the grain overlap-add loss: the Hann overlap of decorrelated grains loses
+    ~1.2 dB of power per pass, while very low, phase-coherent content (< ~30 Hz) passes at unity.
+    Adding (k - 1) * HP60(x) lifts everything above ~60 Hz by k (~+1.2 dB) and leaves the coherent
+    sub-bass at unity, so the loop reaches unity gain at 100 % Feedback without a sub-bass runaway. */
+class OverlapMakeup
+{
+public:
+    static constexpr float kMakeup = 0.148f; // 10^(1.2/20) - 1
+    static constexpr double kCornerHz = 60.0;
+
+    void prepare (double sampleRate) noexcept;
+    void reset() noexcept { x1 = y1 = 0.0f; }
+    float process (float x) noexcept
+    {
+        const float hp = r * (y1 + x - x1); // one-pole high-pass
+        x1 = x;
+        y1 = hp;
+        return x + kMakeup * hp;
+    }
+
+private:
+    float r = 0.99f, x1 = 0.0f, y1 = 0.0f;
+};
+
+/** The whole wet path of Aurora Bloom:
+
+        in ─► u = in + g·Rot(fb[n-1]) ─► DiffuserNetwork ─► softClip ─► wet ─► equal-power mix
+                       ▲                                       │
+                       └─ DC block ◄─ filters ◄─ GrainPitchShifter ◄┘
+
+    The pitch shifter sits inside the loop: every recirculation goes through the diffusers and
+    the shifter again, so +12 st stacks rising octaves while the echo density grows. With
+    Feedback = 0 the shifted signal is never heard.
+
+    Processing is strictly per sample with every smoother and modulator advanced once per
+    sample, so the output does not depend on how the host splits the audio into blocks. */
+class ShimmerEngine
+{
+public:
+    void prepare (double sampleRate);
+    void reset() noexcept;
+    bool isPrepared() const noexcept { return prepared; }
+    double getSampleRate() const noexcept { return sampleRate; }
+
+    void setParameters (const EngineParameters& newParams) noexcept;
+
+    /** Host bypass: the dry signal passes at unity, the wet fades out and the loop is flushed
+        (input and feedback ramp to zero over 50 ms) so no stale tail bursts out later. Once the
+        ramp has finished, process() leaves the buffer untouched and costs no CPU. */
+    void setBypassed (bool shouldBeBypassed) noexcept;
+
+    /** In-place stereo processing. Any numSamples >= 0 is valid. */
+    void process (float* left, float* right, int numSamples) noexcept;
+
+    // --- Parameter laws (public for tests and UI) ------------------------------------------
+    static float feedbackToGain (float feedback01) noexcept;
+    static float sizeToFactor (float size01) noexcept;
+    static void mixGains (float mix01, float& dryGain, float& wetGain) noexcept;
+    static float softClip (float x) noexcept;
+    static float diffusionToCoefficient (float diffusion01) noexcept;
+    static double estimateTailSeconds (const EngineParameters& p) noexcept;
+
+    // --- Meters (valid after each process() call) -------------------------------------------
+    float getLastWetRms (int channel) const noexcept { return channel == 0 ? wetRmsL : wetRmsR; }
+    float getLastInputRms() const noexcept { return inputRms; }
+    int getNumResets() const noexcept { return numSafetyResets; }
+
+private:
+    void applyMode (ReverbMode newMode) noexcept;
+    void clearLoopState() noexcept;
+    void updateModulation() noexcept;
+    void updatePitchMode() noexcept;
+    void updateFilters() noexcept;
+
+    double sampleRate = 48000.0;
+    bool prepared = false;
+
+    EngineParameters params;
+    DiffuserNetwork diffuser;
+    GrainPitchShifter shifterL, shifterR;
+    LoopFilters filters;
+
+    LinearSmoother dryGain, wetGain, feedbackGain, diffusionG, bypassAmount;
+    LinearSmoother modDepthSamples; // peak modulation in samples (sample-rate scaled)
+    LinearSmoother pitchThru, pitchVoiceA, pitchVoiceB; // pitch-mode crossfade gains (20 ms)
+    OnePoleSmoother sizeFactor;
+
+    // Reverb-mode change: duck the wet path, reconfigure, fade back in.
+    ReverbMode activeMode = ReverbMode::MediumStereo;
+    float duckGain = 1.0f;
+    float duckStep = 0.0f;
+    bool monoInput = false;
+    float crossCos = 1.0f, crossSin = 0.0f;
+
+    float fbL = 0.0f, fbR = 0.0f;
+    DcBlocker dcL, dcR;
+    OverlapMakeup makeupL, makeupR;
+
+    bool flushedWhileBypassed = false;
+    float wetRmsL = 0.0f, wetRmsR = 0.0f, inputRms = 0.0f;
+    int numSafetyResets = 0;
+};
+
+} // namespace ab::dsp

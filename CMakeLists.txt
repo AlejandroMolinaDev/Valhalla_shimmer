@@ -35,6 +35,32 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 add_subdirectory(JUCE EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
+# DSP core: plain C++20, no JUCE dependency (fast, deterministic unit tests)
+# ---------------------------------------------------------------------------
+add_library(AuroraBloomDSP STATIC
+    source/dsp/DiffuserNetwork.cpp
+    source/dsp/GrainPitchShifter.cpp
+    source/dsp/LoopFilters.cpp
+    source/dsp/ShimmerEngine.cpp)
+
+target_include_directories(AuroraBloomDSP PUBLIC source)
+target_compile_features(AuroraBloomDSP PUBLIC cxx_std_20)
+ab_set_strict_warnings(AuroraBloomDSP)
+
+# ---------------------------------------------------------------------------
+# Embedded resources: fonts (OFL) and factory presets
+# ---------------------------------------------------------------------------
+file(GLOB AB_FACTORY_PRESETS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/presets/*.xml")
+juce_add_binary_data(AuroraBloomData
+    HEADER_NAME BinaryData.h
+    NAMESPACE BinaryData
+    SOURCES
+        assets/fonts/SpaceGrotesk-Medium.ttf
+        assets/fonts/SpaceGrotesk-Bold.ttf
+        ${AB_FACTORY_PRESETS})
+set_target_properties(AuroraBloomData PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# ---------------------------------------------------------------------------
 # Plugin
 # ---------------------------------------------------------------------------
 juce_add_plugin(AuroraBloom
@@ -56,8 +82,15 @@ juce_add_plugin(AuroraBloom
     COPY_PLUGIN_AFTER_BUILD ${AB_COPY_AFTER_BUILD})
 
 target_sources(AuroraBloom PRIVATE
+    source/Parameters.cpp
+    source/PresetManager.cpp
     source/PluginProcessor.cpp
-    source/PluginEditor.cpp)
+    source/PluginEditor.cpp
+    source/ui/LookAndFeel.cpp
+    source/ui/Knob.cpp
+    source/ui/ModeSelector.cpp
+    source/ui/DecayVisualizer.cpp
+    source/ui/PresetBar.cpp)
 
 target_include_directories(AuroraBloom PUBLIC source)
 
@@ -71,9 +104,11 @@ target_compile_definitions(AuroraBloom PUBLIC
 target_link_libraries(AuroraBloom
     PRIVATE
         juce::juce_audio_utils
+        juce::juce_recommended_warning_flags
     PUBLIC
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_warning_flags)
+        AuroraBloomData
+        AuroraBloomDSP
+        juce::juce_recommended_config_flags)
 
 # ---------------------------------------------------------------------------
 # Tests
