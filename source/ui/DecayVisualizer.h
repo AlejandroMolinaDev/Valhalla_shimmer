@@ -27,6 +27,10 @@ public:
     void advanceFrame();
     void parentHierarchyChanged() override { updateTimer(); }
 
+    /** Smoothed wet level shown on the right edge of the envelope, 0..1 (-60..0 dBFS). */
+    float getDisplayLevel() const noexcept { return level; }
+    bool isAnimating() const noexcept { return isTimerRunning(); }
+
 private:
     void timerCallback() override;
     void updateTimer();

@@ -12,6 +12,10 @@ namespace
     constexpr float kPi = 3.14159265358979323846f;
     constexpr double kMixRampMs = 30.0;
     constexpr double kParamRampMs = 50.0;
+    // Diffusion and Mod Depth glide slowly: the allpass state stored at a high coefficient is
+    // released gradually instead of in one burst, and a depth change is a delay-time change.
+    constexpr double kDiffusionRampMs = 250.0;
+    constexpr double kModDepthRampMs = 250.0;
     constexpr double kSizeTimeConstantMs = 250.0;
     constexpr double kBypassRampMs = 50.0;
     constexpr double kModeDuckMs = 25.0;
@@ -111,7 +115,8 @@ void ShimmerEngine::prepare (double newSampleRate)
     dryGain.prepare (sampleRate, kMixRampMs);
     wetGain.prepare (sampleRate, kMixRampMs);
     feedbackGain.prepare (sampleRate, kParamRampMs);
-    diffusionG.prepare (sampleRate, kParamRampMs);
+    diffusionG.prepare (sampleRate, kDiffusionRampMs);
+    modDepthSamples.prepare (sampleRate, kModDepthRampMs);
     bypassAmount.prepare (sampleRate, kBypassRampMs);
     pitchThru.prepare (sampleRate, kPitchModeRampMs);
     pitchVoiceA.prepare (sampleRate, kPitchModeRampMs);
@@ -147,6 +152,7 @@ void ShimmerEngine::reset() noexcept
     sizeFactor.snap (sizeToFactor (params.size));
     bypassAmount.snap (bypassAmount.getTarget());
     updateModulation();
+    modDepthSamples.snap (modDepthSamples.getTarget());
     updatePitchMode();
     updateFilters();
     filters.snap();
@@ -189,7 +195,8 @@ void ShimmerEngine::updateModulation() noexcept
 {
     const auto srScale = static_cast<float> (sampleRate / static_cast<double> (kReferenceSampleRate));
     const float depth = std::clamp (params.modDepth, 0.0f, 1.0f) * DiffuserNetwork::kMaxModDepthSamples48k * srScale;
-    diffuser.setModulation (std::clamp (params.modRateHz, 0.01f, 10.0f), depth);
+    diffuser.setModulationRate (std::clamp (params.modRateHz, 0.01f, 10.0f));
+    modDepthSamples.setTarget (depth);
 }
 
 void ShimmerEngine::clearLoopState() noexcept
@@ -303,7 +310,7 @@ void ShimmerEngine::process (float* left, float* right, int numSamples) noexcept
 
         // --- Diffuser network ------------------------------------------------------------------
         float netL = 0.0f, netR = 0.0f;
-        diffuser.process (uL, uR, netL, netR, sizeFactor.next(), diffusionG.next());
+        diffuser.process (uL, uR, netL, netR, sizeFactor.next(), diffusionG.next(), modDepthSamples.next());
 
         const float wetL = softClip (netL);
         const float wetR = softClip (netR);

@@ -48,6 +48,7 @@ ModeSelector::ModeSelector (juce::AudioProcessorValueTreeState& state, const juc
             onWidthChanged();
     };
     setTitle (title);
+    setComponentID (paramId);
 }
 
 int ModeSelector::getIdealWidth() const

@@ -19,6 +19,14 @@ PresetBar::PresetBar (PresetManager& manager) : presets (manager)
     next.setTitle ("Next preset");
     name.setTitle ("Preset menu");
 
+    previous.setComponentID ("presetPrevious");
+    next.setComponentID ("presetNext");
+    name.setComponentID ("presetName");
+    save.setComponentID ("presetSave");
+    slotA.setComponentID ("slotA");
+    slotB.setComponentID ("slotB");
+    copy.setComponentID ("slotCopy");
+
     previous.setConnectedEdges (juce::Button::ConnectedOnRight);
     name.setConnectedEdges (juce::Button::ConnectedOnLeft | juce::Button::ConnectedOnRight);
     next.setConnectedEdges (juce::Button::ConnectedOnLeft);
@@ -56,7 +64,7 @@ void PresetBar::changeListenerCallback (juce::ChangeBroadcaster*)
     updateDisplay();
 }
 
-void PresetBar::timerCallback()
+void PresetBar::pollModified()
 {
     if (presets.isModified() != lastModified)
         updateDisplay();
@@ -86,14 +94,14 @@ void PresetBar::resized()
     name.setBounds (b.withTrimmedRight (-1));
 }
 
-void PresetBar::showPresetMenu()
+juce::PopupMenu PresetBar::buildPresetMenu()
 {
     presets.refresh();
     const auto& list = presets.getPresets();
     const int current = presets.getCurrentIndex();
 
     juce::PopupMenu menu;
-    menu.addItem (10001, "Init (default settings)", true, current < 0 && presets.getCurrentName() == "Init");
+    menu.addItem (kInitItem, "Init (default settings)", true, current < 0 && presets.getCurrentName() == "Init");
     menu.addSeparator();
     juce::String lastCategory;
     bool userHeaderAdded = false;
@@ -114,27 +122,38 @@ void PresetBar::showPresetMenu()
         menu.addItem (static_cast<int> (i) + 1, p.name, true, static_cast<int> (i) == current);
     }
     menu.addSeparator();
-    menu.addItem (10000, "Open user preset folder");
+    menu.addItem (kOpenFolderItem, "Open user preset folder");
+    return menu;
+}
 
-    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&name).withMinimumWidth (name.getWidth()),
-                        [safe = juce::Component::SafePointer<PresetBar> (this)] (int result)
-                        {
-                            if (safe == nullptr || result == 0)
-                                return;
-                            if (result == 10001)
-                            {
-                                safe->presets.loadInit();
-                                return;
-                            }
-                            if (result == 10000)
-                            {
-                                const auto folder = PresetManager::getUserPresetFolder();
-                                folder.createDirectory();
-                                folder.startAsProcess();
-                                return;
-                            }
-                            safe->presets.loadPreset (result - 1);
-                        });
+void PresetBar::handlePresetMenuResult (int result)
+{
+    if (result == 0)
+        return;
+    if (result == kInitItem)
+    {
+        presets.loadInit();
+        return;
+    }
+    if (result == kOpenFolderItem)
+    {
+        const auto folder = PresetManager::getUserPresetFolder();
+        folder.createDirectory();
+        folder.startAsProcess();
+        return;
+    }
+    presets.loadPreset (result - 1);
+}
+
+void PresetBar::showPresetMenu()
+{
+    buildPresetMenu().showMenuAsync (
+        juce::PopupMenu::Options().withTargetComponent (&name).withMinimumWidth (name.getWidth()),
+        [safe = juce::Component::SafePointer<PresetBar> (this)] (int result)
+        {
+            if (safe != nullptr)
+                safe->handlePresetMenuResult (result);
+        });
 }
 
 void PresetBar::showSaveDialog()

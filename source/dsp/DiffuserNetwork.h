@@ -32,15 +32,16 @@ public:
     ReverbMode getMode() const noexcept { return mode; }
     int getNumStages() const noexcept { return numStages; }
 
-    /** rateHz: average LFO rate. depthSamples: peak modulation in samples (already scaled to
-        the current sample rate). */
-    void setModulation (float rateHz, float depthSamples) noexcept;
+    /** rateHz: average LFO rate of every stage. */
+    void setModulationRate (float rateHz) noexcept;
 
     /** Base length of a stage in samples at the current sample rate (Size = 100 %). */
     float getBaseLength (int stage, bool right) const noexcept;
 
-    /** Processes one stereo sample. sizeFactor in (0, 1], g in [0, kMaxDiffusion]. */
-    void process (float inL, float inR, float& outL, float& outR, float sizeFactor, float g) noexcept
+    /** Processes one stereo sample. sizeFactor in (0, 1], g in [0, kMaxDiffusion], modDepth = peak
+        modulation in samples at the current sample rate (smoothed by the caller: a jump in depth
+        is a jump in delay time, i.e. a click). */
+    void process (float inL, float inR, float& outL, float& outR, float sizeFactor, float g, float modDepth) noexcept
     {
         float l = inL, r = inR;
         for (int s = 0; s < numStages; ++s)
@@ -62,7 +63,6 @@ private:
     double sampleRate = 48000.0;
     ReverbMode mode = ReverbMode::MediumStereo;
     int numStages = 0;
-    float modDepth = 0.0f;
 };
 
 } // namespace ab::dsp

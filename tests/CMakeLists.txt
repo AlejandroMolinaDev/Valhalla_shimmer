@@ -24,7 +24,10 @@ catch_discover_tests(DspTests DISCOVERY_MODE PRE_TEST)
 # Plugin-level tests (link the JUCE shared code of the plugin)
 # ---------------------------------------------------------------------------
 add_executable(PluginTests
-    PluginTests.cpp)
+    PluginTestHelpers.h
+    PluginTests.cpp
+    KnobAudioTests.cpp
+    EditorTests.cpp)
 
 # The plugin's shared-code static library already contains the compiled JUCE
 # modules; the tests only need the module headers on the include path.

@@ -55,6 +55,11 @@ y[n] = −g · v[n] + v[n−D]          H(z) = (z^−D − g) / (1 − g z^−D)
   con spline Catmull-Rom, no un seno; cada LFO tiene una tasa fija aleatoria entre 0,8× y 1,25× de
   Mod Rate. La profundidad es constante en muestras (0–64 @ 48 kHz, escalada por la frecuencia de
   muestreo); su efecto audible crece con Diffusion porque la señal recircula dentro de cada allpass.
+  Mod Depth se suaviza con una rampa lineal de 250 ms: un salto de profundidad es un salto de tiempo
+  de retardo, y sin rampa saltar 0 → 100 % producía un click (lo detectó el test de automatización).
+- **Diffusion** también se suaviza 250 ms (no 50 ms como Feedback): con g alto cada allpass almacena
+  mucha energía en su línea, y bajar g de golpe la soltaba en una ráfaga audible. Con 250 ms la
+  rampa abarca varias vueltas de cada línea y la energía sale gradualmente.
 - **Size** escala todas las longitudes con un factor exponencial `0,1 · 10^size` (0,1×–1×) y se
   suaviza con un one-pole de 250 ms: al moverlo en vivo se produce el típico barrido de pitch, sin
   clicks.

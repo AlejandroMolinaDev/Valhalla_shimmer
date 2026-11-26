@@ -53,9 +53,8 @@ void DiffuserNetwork::setMode (ReverbMode newMode) noexcept
     }
 }
 
-void DiffuserNetwork::setModulation (float rateHz, float depthSamples) noexcept
+void DiffuserNetwork::setModulationRate (float rateHz) noexcept
 {
-    modDepth = depthSamples;
     for (std::size_t i = 0; i < kMaxStages; ++i)
     {
         lfoL[i].setRate (rateHz);

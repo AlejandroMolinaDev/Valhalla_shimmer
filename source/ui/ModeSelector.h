@@ -16,6 +16,8 @@ public:
 
     void resized() override;
 
+    juce::ComboBox& getComboBox() noexcept { return box; }
+
     /** Width needed to show the title and the currently selected option. */
     int getIdealWidth() const;
 

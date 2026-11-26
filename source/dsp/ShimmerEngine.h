@@ -145,6 +145,7 @@ private:
     LoopFilters filters;
 
     LinearSmoother dryGain, wetGain, feedbackGain, diffusionG, bypassAmount;
+    LinearSmoother modDepthSamples; // peak modulation in samples (sample-rate scaled)
     LinearSmoother pitchThru, pitchVoiceA, pitchVoiceB; // pitch-mode crossfade gains (20 ms)
     OnePoleSmoother sizeFactor;
 

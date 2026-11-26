@@ -16,9 +16,19 @@ public:
 
     void resized() override;
 
+    /** The preset browser menu (Init, factory presets by category, user presets, folder). */
+    juce::PopupMenu buildPresetMenu();
+    /** Applies a result of buildPresetMenu(); 0 (dismissed) does nothing. */
+    void handlePresetMenuResult (int result);
+    /** Refreshes the "*" marker when a parameter was changed since the last preset load. */
+    void pollModified();
+
+    static constexpr int kInitItem = 10001;
+    static constexpr int kOpenFolderItem = 10000;
+
 private:
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
-    void timerCallback() override;
+    void timerCallback() override { pollModified(); }
     void updateDisplay();
     void showPresetMenu();
     void showSaveDialog();

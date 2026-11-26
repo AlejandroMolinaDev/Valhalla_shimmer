@@ -162,7 +162,7 @@ source/
   ui/    LookAndFeel, Knob, ModeSelector, DecayVisualizer, PresetBar
   presets/  presets de fábrica (XML embebidos)
 assets/fonts/   Space Grotesk (SIL OFL 1.1)
-tests/          Catch2: DspTests, PluginTests, ab_render
+tests/          Catch2: DspTests, PluginTests (+ KnobAudioTests, EditorTests), ab_render
 tools/          spectrogram.py (análisis de renders)
 docs/DSP.md     arquitectura y decisiones del DSP
 ```
@@ -175,6 +175,25 @@ puro con Diffusion 0, ausencia de pitch con Feedback 0, energía armónica Singl
 mezcla, RT60 independiente de la frecuencia de muestreo, salida idéntica con bloques variables,
 guardado/restauración de estado, presets, A/B y patrones de llamada de FL Studio (bloques de 0
 muestras, bloques mayores que el máximo, re-`prepare`, instancias en paralelo, bypass).
+
+Además, dos baterías prueban el plugin completo tal como lo usa un host:
+
+- **`KnobAudioTests.cpp`**: cada perilla y selector se prueba a través de los parámetros reales
+  (APVTS → motor → `processBlock`) y se mide su efecto en el audio: Mix sigue la ley
+  `cos(mix·π/2)`, Pitch lleva la cola al intervalo elegido (+12, +7, +5, −12, 0), Feedback alarga la
+  cola, Diffusion pasa de ecos discretos a una nube densa, Size retrasa la primera llegada, Low/High
+  Cut y Color Dark recortan graves/agudos, Mod Depth/Rate desafinan (y con Depth 0 Rate no cambia ni
+  una muestra), Reverb Mode (Mono suma la entrada, cada modo suena distinto), Pitch Mode (cada modo
+  genera sus intervalos). También: silencio digital → silencio, los 12 presets sin clipping, DC ni
+  saltos de volumen, imagen estéreo decorrelada, cola reportada suficiente y **automatización
+  extrema de cada perilla sin clicks**.
+- **`EditorTests.cpp`**: abre el editor real y simula al usuario: cada perilla está ligada a su
+  parámetro (en ambos sentidos), arrastre normal y fino (Ctrl/Cmd), snap de semitonos en Pitch
+  (Shift = 0,01 st), doble clic, rueda, teclado, texto con unidades y valores tecleados, un único
+  gesto por arrastre (para grabar automatización en FL Studio), selectores de modo sincronizados y
+  sin solaparse, barra de presets (anterior/siguiente, menú, Init, marca `*`, A/B, Copy, guardar y
+  reemplazar presets de usuario), visualizador que sigue la cola y se detiene oculto, render a todos
+  los tamaños, disposición sin solapes y abrir/cerrar el editor con audio en otro hilo.
 
 ```bash
 ./build/tests/ab_render render.wav input=chord pitch=12 feedback=0.75 pitchmode=3 seconds=15

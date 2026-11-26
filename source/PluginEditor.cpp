@@ -64,6 +64,8 @@ AuroraBloomCanvas::AuroraBloomCanvas (AuroraBloomProcessor& p)
                  "Bright: full bandwidth, only High Cut limits the top end. Dark: steep ~10 kHz low-pass inside "
                  "the loop, like late-70s digital reverbs; also tames pitch-shift aliasing.")
 {
+    presetBar.setComponentID ("presetBar");
+    setComponentID ("canvas");
     addAndMakeVisible (presetBar);
     addAndMakeVisible (visualizer);
 

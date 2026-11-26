@@ -127,6 +127,8 @@ Knob::Knob (juce::AudioProcessorValueTreeState& state, const juce::String& param
     titleLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (titleLabel);
 
+    setComponentID (paramId); // lets tests and accessibility tools find the knob by parameter
+    slider.setComponentID (paramId + "_slider");
     slider.getProperties().set ("bipolar", bipolar);
     slider.setSnapToIntegers (snapToIntegers);
     slider.setTooltip (tooltip);
